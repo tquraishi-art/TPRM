@@ -89,5 +89,19 @@ Then restart the server. OAuth routes available when configured:
 - `/auth/github/callback` — OAuth redirect URI
 
 On successful login the user will be created (if missing) with `EDITOR` role by default.
+
+## Docker image build & publish
+
+This repo includes a `Dockerfile` to build a production image and a GitHub Actions workflow to build and publish the image to GitHub Container Registry (GHCR) on pushes to `main`/`master`.
+
+To publish locally:
+
+```bash
+# build and push to GHCR (login first: echo $PAT | docker login ghcr.io -u USER --password-stdin)
+./scripts/build_and_push.sh ghcr.io YOUR_USER/TPRM latest
+```
+
+To enable GitHub Actions publishing, ensure the repository has `GITHUB_TOKEN` (default) with `packages: write` permission.
+
 # TPRM
 # TPRM
