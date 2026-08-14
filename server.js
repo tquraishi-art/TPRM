@@ -27,11 +27,13 @@ const { requireRole, requirePermission } = require('./lib/rbac');
 
 
 let redisClient = null;
+let sessionStore = null;
 
 const PORT = process.env.PORT || 3000;
 const app = express();
 
 app.use(express.json());
+const router = express.Router();
 // Passport for OAuth
 const passport = require('passport');
 const GitHubStrategy = require('passport-github2').Strategy;
@@ -57,14 +59,11 @@ function getSessionOptions(store = null) {
   };
 }
 
-// initial in-memory session (will be overridden if Redis configured)
-app.use(session(getSessionOptions()));
-
 // Serve static files (existing index.html)
 app.use(express.static(path.join(__dirname)));
 
 // Simple API endpoint for metrics
-app.get('/api/metrics', async (req, res) => {
+router.get('/api/metrics', async (req, res) => {
   try {
     const metrics = await getMetrics();
     res.json({ ok: true, metrics });
@@ -75,7 +74,7 @@ app.get('/api/metrics', async (req, res) => {
 });
 
 // Allow creating metrics (protected role: EDITOR or ADMIN)
-app.post('/api/metrics', express.json(), requireRole('EDITOR'), async (req, res) => {
+router.post('/api/metrics', express.json(), requireRole('EDITOR'), async (req, res) => {
   try {
     const { name, value } = req.body || {};
     if (!name) return res.status(400).json({ ok: false, error: 'missing name' });
@@ -99,7 +98,7 @@ app.post('/api/metrics', express.json(), requireRole('EDITOR'), async (req, res)
 });
 
 // Auth endpoints (local email/password for dev)
-app.post('/api/login', express.json(), async (req, res) => {
+router.post('/api/login', express.json(), async (req, res) => {
   try {
     const { email, password } = req.body || {};
     if (!email || !password) return res.status(400).json({ ok: false, error: 'missing credentials' });
@@ -118,7 +117,7 @@ app.post('/api/login', express.json(), async (req, res) => {
   }
 });
 
-app.post('/api/logout', (req, res) => {
+router.post('/api/logout', (req, res) => {
   const actor = req.session && req.session.userId;
   req.session.destroy((err) => {
     if (err) {
@@ -130,7 +129,7 @@ app.post('/api/logout', (req, res) => {
   });
 });
 
-app.get('/api/me', async (req, res) => {
+router.get('/api/me', async (req, res) => {
   try {
     if (!req.session || !req.session.userId) return res.json({ ok: true, user: null });
     const user = await getUserById(req.session.userId);
@@ -142,7 +141,7 @@ app.get('/api/me', async (req, res) => {
 });
 
 // Registration endpoint: allow creating the first user without auth; afterwards only ADMIN can create users
-app.post('/api/register', express.json(), async (req, res) => {
+router.post('/api/register', express.json(), async (req, res) => {
   try {
     const { email, password, role = 'EDITOR', displayName = '' } = req.body || {};
     if (!email || !password) return res.status(400).json({ ok: false, error: 'missing email or password' });
@@ -356,7 +355,6 @@ async function start() {
   // Initialize Redis client for session store
   const RedisStoreFactory = connectRedis.default || connectRedis;
   const redisUrl = process.env.REDIS_URL;
-  let sessionStore = null;
 
   redisClient = null;
   if (redisUrl) {
@@ -375,19 +373,17 @@ async function start() {
     console.log('REDIS_URL not set — using in-memory session store (development only)');
   }
 
+  sessionStore = sessionStore;
   app.use(
-    session({
-      store: sessionStore,
-      secret: process.env.SESSION_SECRET || 'dev-secret',
-      resave: false,
-      saveUninitialized: false,
-      cookie: { secure: false },
-    }),
+    session(getSessionOptions(sessionStore)),
   );
 
   // initialize passport (relies on sessions)
   app.use(passport.initialize());
   app.use(passport.session());
+
+  // Mount API router after session and passport middlewares so authenticated routes can access req.session
+  app.use(router);
 
   // Passport serialize/deserialize using our users table
   passport.serializeUser((user, done) => {
