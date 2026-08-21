@@ -28,3 +28,6 @@ build/
 
 # Misc
 coverage/
+
+# Sanitization working backup (permanent backup is in data-backup/)
+index.html.bak
