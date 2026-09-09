@@ -187,10 +187,17 @@ router.post('/api/register', express.json(), async (req, res) => {
 // Serve the simple admin UI from /admin
 app.use('/admin', express.static(path.join(__dirname, 'admin')));
 
-// Admin: user management endpoints
+// Serve the TPRM React app at /tprm (static assets)
+app.use('/tprm', express.static(path.join(__dirname, 'tprm-ui', 'dist')));
+// React Router catch-all: any /tprm/* path that isn't a static file returns the SPA shell
+app.get('/tprm/*splat', (req, res) => {
+  res.sendFile(path.join(__dirname, 'tprm-ui', 'dist', 'index.html'));
+});
+
+// Admin: user management endpoints (mounted on `router` so session middleware is available)
 
 // List users (ADMIN only)
-app.get('/api/users', requireRole('ADMIN'), async (req, res) => {
+router.get('/api/users', requireRole('ADMIN'), async (req, res) => {
   try {
     const users = await listUsers();
     res.json({ ok: true, users });
@@ -201,7 +208,7 @@ app.get('/api/users', requireRole('ADMIN'), async (req, res) => {
 });
 
 // Get a single user: ADMIN or the user themself
-app.get('/api/users/:id', async (req, res) => {
+router.get('/api/users/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!req.session || !req.session.userId) return res.status(401).json({ ok: false, error: 'unauthenticated' });
@@ -215,7 +222,7 @@ app.get('/api/users/:id', async (req, res) => {
 });
 
 // Update a user: ADMIN can update role/displayName/email; users can update their own displayName and email
-app.put('/api/users/:id', express.json(), async (req, res) => {
+router.put('/api/users/:id', express.json(), async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!req.session || !req.session.userId) return res.status(401).json({ ok: false, error: 'unauthenticated' });
@@ -235,7 +242,7 @@ app.put('/api/users/:id', express.json(), async (req, res) => {
 });
 
 // Delete a user (ADMIN only)
-app.delete('/api/users/:id', requireRole('ADMIN'), async (req, res) => {
+router.delete('/api/users/:id', requireRole('ADMIN'), async (req, res) => {
   try {
     const id = Number(req.params.id);
     const result = await deleteUser(id);
@@ -248,7 +255,7 @@ app.delete('/api/users/:id', requireRole('ADMIN'), async (req, res) => {
 });
 
 // Audit endpoints
-app.get('/api/audit', requireRole('ADMIN'), async (req, res) => {
+router.get('/api/audit', requireRole('ADMIN'), async (req, res) => {
   try {
     // support optional query params: limit, actorId, action, resource
     const limit = Math.min(parseInt(req.query.limit || '200', 10), 1000);
@@ -266,7 +273,7 @@ app.get('/api/audit', requireRole('ADMIN'), async (req, res) => {
   }
 });
 
-app.get('/api/audit/user/:id', async (req, res) => {
+router.get('/api/audit/user/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!req.session || !req.session.userId) return res.status(401).json({ ok: false, error: 'unauthenticated' });
@@ -281,7 +288,7 @@ app.get('/api/audit/user/:id', async (req, res) => {
 });
 
 // Permissions management (ADMIN)
-app.get('/api/permissions', requireRole('ADMIN'), async (req, res) => {
+router.get('/api/permissions', requireRole('ADMIN'), async (req, res) => {
   try {
     const perms = await require('./server_helpers').listPermissions();
     res.json({ ok: true, permissions: perms });
@@ -291,7 +298,7 @@ app.get('/api/permissions', requireRole('ADMIN'), async (req, res) => {
   }
 });
 
-app.post('/api/permissions', requireRole('ADMIN'), express.json(), async (req, res) => {
+router.post('/api/permissions', requireRole('ADMIN'), express.json(), async (req, res) => {
   try {
     const { resource, action, role, userId, allow } = req.body || {};
     if (!resource || !action) return res.status(400).json({ ok: false, error: 'missing resource or action' });
@@ -304,7 +311,7 @@ app.post('/api/permissions', requireRole('ADMIN'), express.json(), async (req, r
   }
 });
 
-app.delete('/api/permissions/:id', requireRole('ADMIN'), async (req, res) => {
+router.delete('/api/permissions/:id', requireRole('ADMIN'), async (req, res) => {
   try {
     const id = Number(req.params.id);
     const result = await require('./server_helpers').deletePermission(id);
@@ -317,7 +324,7 @@ app.delete('/api/permissions/:id', requireRole('ADMIN'), async (req, res) => {
 });
 
 // Bulk replace role-based permissions for resource/action
-app.post('/api/permissions/bulk', requireRole('ADMIN'), express.json(), async (req, res) => {
+router.post('/api/permissions/bulk', requireRole('ADMIN'), express.json(), async (req, res) => {
   try {
     const { entries } = req.body || {};
     if (!Array.isArray(entries)) return res.status(400).json({ ok: false, error: 'entries array required' });
