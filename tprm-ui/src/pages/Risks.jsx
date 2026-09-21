@@ -3,30 +3,11 @@ import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Search, Plus, Pencil, X, Check, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { VENDORS_INIT, RISKS_SEED } from '@/lib/seedData'
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
-const VENDORS = [
-  {id:'v1',name:'CloudSystems Inc',tier:'Tier 1',cat:'Cloud / SaaS'},
-  {id:'v2',name:'DataSecure LLC',tier:'Tier 1',cat:'Technology'},
-  {id:'v3',name:'GlobalPay Corp',tier:'Tier 2',cat:'Financial Services'},
-  {id:'v4',name:'LegalEagle LLP',tier:'Tier 2',cat:'Legal'},
-  {id:'v5',name:'FastShip Logistics',tier:'Tier 3',cat:'Logistics'},
-  {id:'v6',name:'MedConsult Group',tier:'Tier 4',cat:'Healthcare'},
-]
-
-const INIT_RISKS = [
-  {id:'r1', name:'Unpatched software vulnerabilities in cloud platform', vendor:'v1', cat:'Cybersecurity',       lik:4, imp:5, ctrl:1, treat:'Mitigate', st:'Open',        owner:'S. Kim',    due:'2026-09-15', desc:'Unpatched CVEs in core API infrastructure.',                       plan:'Require patch schedule. Emergency patching review within 30 days.', ev:''},
-  {id:'r2', name:'Inadequate data encryption at rest',                   vendor:'v2', cat:'Cybersecurity',       lik:3, imp:5, ctrl:1, treat:'Mitigate', st:'In Progress', owner:'T. Wilson', due:'2026-08-30', desc:'Not all data stores encrypted with AES-256.',                      plan:'Enforce contractual encryption requirements.',                       ev:'Ticket #SEC-1042'},
-  {id:'r3', name:'PCI-DSS compliance gap – network segmentation',  vendor:'v3', cat:'Compliance',          lik:4, imp:4, ctrl:0, treat:'Mitigate', st:'Open',        owner:'R. Brown',  due:'2026-09-01', desc:'Failed last PCI audit on network segmentation.',                   plan:'Issue remediation notice.',                                          ev:''},
-  {id:'r4', name:'Vendor financial instability',                         vendor:'v3', cat:'Financial',           lik:3, imp:4, ctrl:1, treat:'Transfer', st:'Open',        owner:'M. Davis',  due:'2026-10-01', desc:'Q2 losses exceeding forecast by 40%.',                             plan:'Request quarterly financials. Identify backup processor.',           ev:''},
-  {id:'r5', name:'Single point of failure – cloud dependency',     vendor:'v1', cat:'Business Continuity', lik:2, imp:5, ctrl:2, treat:'Mitigate', st:'In Progress', owner:'S. Kim',    due:'2026-12-01', desc:'All critical workloads on single cloud provider.',                 plan:'Evaluate multi-cloud strategy.',                                     ev:'DR project initiated'},
-  {id:'r6', name:'Subprocessor data sharing without consent',            vendor:'v2', cat:'Privacy & Data',      lik:3, imp:4, ctrl:3, treat:'Mitigate', st:'Mitigated',   owner:'L. Park',   due:'2026-07-15', desc:'Sharing anonymized data with analytics subprocessors.',            plan:'Updated DPA executed.',                                              ev:'DPA v2 signed 2026-06-01'},
-  {id:'r7', name:'Shipping delays impacting SLA commitments',            vendor:'v5', cat:'Operational',         lik:3, imp:2, ctrl:1, treat:'Accept',   st:'Accepted',    owner:'T. Wilson', due:'2026-09-30', desc:'FastShip delays impacting delivery SLAs.',                         plan:'Add secondary logistics vendor.',                                    ev:''},
-  {id:'r8', name:'GDPR right-to-erasure non-compliance',                 vendor:'v1', cat:'Privacy & Data',      lik:2, imp:4, ctrl:4, treat:'Mitigate', st:'Mitigated',   owner:'L. Park',   due:'2026-06-30', desc:'Erasure requests not processed within regulatory window.',         plan:'Automated deletion workflow deployed.',                              ev:'Deletion workflow audit log'},
-  {id:'r9', name:'Insider threat from contractor broad access',          vendor:'v4', cat:'Cybersecurity',       lik:2, imp:3, ctrl:2, treat:'Mitigate', st:'Open',        owner:'M. Davis',  due:'2026-11-01', desc:'LegalEagle contractors have broad system access.',                 plan:'Implement least-privilege access review.',                           ev:''},
-  {id:'r10',name:'Contract renewal pricing risk',                        vendor:'v1', cat:'Financial',           lik:4, imp:3, ctrl:1, treat:'Accept',   st:'Open',        owner:'R. Brown',  due:'2026-10-15', desc:'Contract renewal with expected 30% price increase.',              plan:'Begin renegotiation 6 months early.',                                ev:''},
-]
+const INIT_RISKS = RISKS_SEED
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -40,12 +21,23 @@ function level(score) {
   if (score >= 2)  return 'Low'
   return 'Very Low'
 }
-function vname(id) { return VENDORS.find(v => v.id === id)?.name || id }
-function vtier(id)  { return VENDORS.find(v => v.id === id)?.tier || '' }
+// Risks may store vendor as name string OR legacy id — resolve both
+function vname(idOrName) {
+  if (!idOrName) return 'Unknown'
+  const byId   = VENDORS_INIT.find(v => v.id   === idOrName)
+  const byName = VENDORS_INIT.find(v => v.name === idOrName)
+  return (byId || byName)?.name || idOrName
+}
+function vtier(idOrName) {
+  if (!idOrName) return ''
+  const byId   = VENDORS_INIT.find(v => v.id   === idOrName)
+  const byName = VENDORS_INIT.find(v => v.name === idOrName)
+  return (byId || byName)?.tier || ''
+}
 function needsEscalation(r) {
   const rl = level(residual(r))
   if (rl === 'Very High') return true
-  const v = VENDORS.find(v => v.id === r.vendor)
+  const v = VENDORS_INIT.find(v => v.id === r.vendor || v.name === r.vendor)
   if (v?.tier === 'Tier 1' && (rl === 'Very High' || rl === 'High')) return true
   if (rl === 'High' && r.due && new Date(r.due) < new Date()) return true
   return false
@@ -89,7 +81,7 @@ const STATUSES = ['Open','In Progress','Mitigated','Accepted','Closed']
 const LEVELS   = ['Very High','High','Moderate','Low','Very Low']
 
 const inputCls = 'w-full border border-gray-200 rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white'
-const BLANK_RISK = {id:'',name:'',vendor:'v1',cat:'Cybersecurity',lik:3,imp:3,ctrl:0,treat:'Mitigate',st:'Open',owner:'',due:'',desc:'',plan:'',ev:''}
+const BLANK_RISK = {id:'',name:'',vendor:'Amazon Web Services',cat:'Cybersecurity',lik:3,imp:3,ctrl:0,treat:'Mitigate',st:'Open',owner:'',due:'',desc:'',plan:'',ev:''}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -133,6 +125,7 @@ export default function Risks() {
   const [filterCat, setFilterCat]       = useState('')
   const [filterTreat, setFilterTreat]   = useState('')
   const [filterEsc, setFilterEsc]       = useState(false)
+  const [filterVendor, setFilterVendor] = useState('')
   const [expandedId, setExpandedId]     = useState(null)
 
   useEffect(() => {
@@ -142,6 +135,7 @@ export default function Risks() {
     if (state.filterCat)    setFilterCat(state.filterCat)
     if (state.filterTreat)  setFilterTreat(state.filterTreat)
     if (state.filterEsc)    setFilterEsc(true)
+    if (state.filterVendor) setFilterVendor(state.filterVendor)
     if (state.openRiskId)   setExpandedId(state.openRiskId)
   }, [state])
   const [modalOpen, setModalOpen]       = useState(false)
@@ -155,6 +149,7 @@ export default function Risks() {
     if (filterCat    && r.cat !== filterCat) return false
     if (filterTreat  && r.treat !== filterTreat) return false
     if (filterEsc    && !needsEscalation(r)) return false
+    if (filterVendor && vname(r.vendor) !== filterVendor) return false
     return true
   })
 
@@ -430,7 +425,7 @@ export default function Risks() {
               <div className="grid grid-cols-2 gap-2">
                 <FormField label="Vendor">
                   <select value={form.vendor} onChange={e => setForm(f => ({ ...f, vendor: e.target.value }))} className={inputCls}>
-                    {VENDORS.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                    {VENDORS_INIT.map(v => <option key={v.id} value={v.name}>{v.name}</option>)}
                   </select>
                 </FormField>
                 <FormField label="Category">

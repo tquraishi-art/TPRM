@@ -1,40 +1,30 @@
-import { useState, useEffect, useRef } from 'react'
-import { Send, Loader2, MessageSquare, RefreshCw, ChevronDown } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { Send, Loader2, MessageSquare, RefreshCw, Database } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { buildContext, query } from '@/lib/tprmEngine'
 
 const SUGGESTED_QUESTIONS = [
-  { cat: 'Risk', q: 'How many critical vendors have unresolved high risks?' },
-  { cat: 'Risk', q: 'Which risks are currently escalated above threshold?' },
-  { cat: 'Vendor', q: 'Which vendors are rated Tier 1 with Very High residual risk?' },
-  { cat: 'Vendor', q: 'Show me the IRQ scores for all Tier-1 vendors' },
-  { cat: 'Issues', q: 'Summarize all overdue remediation issues' },
-  { cat: 'Issues', q: 'Which issues are linked to data security risks?' },
-  { cat: 'Intelligence', q: 'What are the top 3 emerging risk themes this quarter?' },
-  { cat: 'Performance', q: 'Which suppliers scored below 3.0 on their SBR this quarter?' },
+  { cat: 'Risk',       q: 'Which risks are currently escalated above threshold?' },
+  { cat: 'Risk',       q: 'Show me all Very High residual risks' },
+  { cat: 'Risk',       q: 'Summarize Cybersecurity risks in the register' },
+  { cat: 'Risk',       q: 'Are there any risk appetite breaches?' },
+  { cat: 'Vendor',     q: 'Give me a profile of Amazon Web Services' },
+  { cat: 'Vendor',     q: 'Which Tier 1 vendors have open High risks?' },
+  { cat: 'Vendor',     q: 'Show vendor concentration across categories' },
+  { cat: 'Issues',     q: 'What open issues are overdue?' },
+  { cat: 'Issues',     q: 'Summarize all open issues by priority' },
+  { cat: 'Compliance', q: 'Show me Compliance risk findings' },
+  { cat: 'Compliance', q: 'Which assessment questionnaires are pending?' },
+  { cat: 'KRI',        q: 'Are any KRI thresholds currently breached?' },
+  { cat: 'IRQ',        q: 'Show IRQ scores for all scored vendors' },
+  { cat: 'Performance',q: 'Which suppliers scored below 3.0 on their SBR?' },
+  { cat: 'Overview',   q: 'Give me a full risk register summary' },
 ]
 
-const MOCK = {
-  default: "I'm your TPRM AI assistant. I can help you analyze vendor risks, review open issues, check supplier performance scores, and surface emerging intelligence. What would you like to explore?",
-  critical: "Based on current data: **9 vendors** carry Very High residual risk with open issues. Highest concentration is in **Technology** (4), followed by **Real Estate** (2). Top escalations involve data security and business continuity gaps for Tier-1 suppliers.\n\nRecommended action: Schedule executive review for CloudSystems Inc and DataSecure LLC within 5 business days.",
-  sbr: "**14 suppliers** scored below 3.0 this quarter — concentrated in Technology (6) and Consulting (4). Portfolio average is **3.8 / 5.0**, up 0.12 from last quarter.\n\nBottom performers:\n• FastShip Logistics — 2.1\n• MedConsult Group — 2.4\n• GlobalPay Corp — 2.7\n\nRecommend scheduling performance improvement plans for the bottom quartile within 30 days.",
-  issues: "There are **7 tracked issues** across all portfolios:\n• **Critical (2):** PCI-DSS remediation plan overdue (GlobalPay), CloudSystems CVE patching in progress\n• **High (2):** AES-256 encryption rollout, backup processor identification\n• **Medium (1):** Least-privilege access review (LegalEagle)\n• **Low (1):** DPA renewal completed\n\n**1 issue is currently overdue.** Immediate escalation recommended.",
-  themes: "Top 3 emerging risk themes this quarter:\n\n1. **AI Supply Chain Exposure** — Vendors adopting GenAI without governance frameworks. 6 Tier-1 vendors identified as high exposure. Recommend issuing updated IRQ addendum by end of Q3.\n\n2. **Regulatory Divergence** — New SEC/EU disclosure requirements creating compliance gaps across 3 financial sector vendors. Legal review pending.\n\n3. **Concentration Risk** — Single-vendor dependency exceeding 40% threshold in cloud infrastructure and payment processing. Business continuity impact: critical.",
-  irq: "IRQ composite scores across scored vendors:\n\n• CloudSystems Inc — **3.60** (High) — Security 4/5, Privacy 3/5, BCM 4/5, Financial 2/5\n• DataSecure LLC — **3.10** (Moderate) — Privacy strong at 4/5; Security needs improvement\n• GlobalPay Corp — **3.30** (Moderate) — Financial risk elevated (4/5); PCI gap active\n• LegalEagle LLP — **2.00** (Low) — Low exposure across all domains\n• FastShip Logistics — **1.40** (Very Low) — Minimal risk profile\n\nAverage composite: **2.68 (Moderate)**",
-  escalated: "Currently escalated risks:\n\n1. **Unpatched CVEs — CloudSystems Inc** — Very High residual (24/25). Patches in progress, ETA Sept 1.\n2. **PCI-DSS network segmentation gap — GlobalPay Corp** — High residual (18/25). Remediation plan overdue.\n3. **Inadequate encryption at rest — DataSecure LLC** — High residual (16/25). AES-256 rollout underway.\n\nAll 3 require executive sign-off before next board reporting cycle.",
-}
-
-function match(text) {
-  const t = text.toLowerCase()
-  if (t.includes('critical') || t.includes('unresolved') || t.includes('very high')) return MOCK.critical
-  if (t.includes('sbr') || t.includes('supplier') || t.includes('performance') || t.includes('below')) return MOCK.sbr
-  if (t.includes('issue') || t.includes('overdue') || t.includes('remediation')) return MOCK.issues
-  if (t.includes('emerging') || t.includes('theme') || t.includes('trend') || t.includes('intelligence')) return MOCK.themes
-  if (t.includes('irq') || t.includes('composite') || t.includes('questionnaire') || t.includes('score')) return MOCK.irq
-  if (t.includes('escalat') || t.includes('threshold') || t.includes('high risk')) return MOCK.escalated
-  return MOCK.default
-}
-
 function Message({ role, content }) {
+  const html = content
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+
   return (
     <div className={cn('flex gap-3', role === 'user' ? 'justify-end' : 'justify-start')}>
       {role === 'assistant' && (
@@ -50,9 +40,7 @@ function Message({ role, content }) {
             : 'bg-white border border-gray-200 text-gray-800 rounded-tl-none shadow-sm'
         )}
         style={{ whiteSpace: 'pre-line' }}
-        dangerouslySetInnerHTML={{
-          __html: content.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        }}
+        dangerouslySetInnerHTML={{ __html: html }}
       />
       {role === 'user' && (
         <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold text-gray-500">
@@ -64,13 +52,26 @@ function Message({ role, content }) {
 }
 
 export default function Chat() {
-  const [messages, setMessages] = useState([
-    { role: 'assistant', content: MOCK.default }
+  const ctx = useRef(null)
+
+  function getCtx() {
+    // Rebuild context on every query so it always reads latest localStorage
+    ctx.current = buildContext()
+    return ctx.current
+  }
+
+  const welcome = useCallback(() => {
+    const c = getCtx()
+    return query('hello', c)
+  }, [])
+
+  const [messages, setMessages] = useState(() => [
+    { role: 'assistant', content: welcome() }
   ])
-  const [input, setInput] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [input, setInput]       = useState('')
+  const [loading, setLoading]   = useState(false)
   const [activeCat, setActiveCat] = useState('All')
-  const endRef = useRef(null)
+  const endRef   = useRef(null)
   const inputRef = useRef(null)
 
   useEffect(() => {
@@ -83,10 +84,13 @@ export default function Chat() {
     setInput('')
     setMessages(prev => [...prev, { role: 'user', content: msg }])
     setLoading(true)
+
+    // Simulate brief processing latency (purely UX — answer is computed synchronously)
     setTimeout(() => {
-      setMessages(prev => [...prev, { role: 'assistant', content: match(msg) }])
+      const answer = query(msg, getCtx())
+      setMessages(prev => [...prev, { role: 'assistant', content: answer }])
       setLoading(false)
-    }, 800)
+    }, 300)
   }
 
   function handleKey(e) {
@@ -94,25 +98,36 @@ export default function Chat() {
   }
 
   function reset() {
-    setMessages([{ role: 'assistant', content: MOCK.default }])
+    setMessages([{ role: 'assistant', content: welcome() }])
     setInput('')
   }
 
   const cats = ['All', ...Array.from(new Set(SUGGESTED_QUESTIONS.map(q => q.cat)))]
-  const visibleSuggestions = activeCat === 'All'
+  const visible = activeCat === 'All'
     ? SUGGESTED_QUESTIONS
     : SUGGESTED_QUESTIONS.filter(q => q.cat === activeCat)
 
+  // Data freshness indicator — count of items in key stores
+  const freshness = (() => {
+    try {
+      const r = JSON.parse(localStorage.getItem('tprm:risks')   || '[]').length
+      const v = JSON.parse(localStorage.getItem('tprm:vendors') || '[]').length
+      const i = JSON.parse(localStorage.getItem('tprm:issues')  || '[]').length
+      return `${v} vendors · ${r} risks · ${i} issues`
+    } catch { return 'Live data' }
+  })()
+
   return (
     <div className="flex gap-5 h-[calc(100vh-120px)]">
-      {/* Sidebar: suggested questions */}
+
+      {/* Sidebar */}
       <div className="w-64 shrink-0 flex flex-col gap-3">
         <div className="bg-white border border-gray-200 rounded-xl p-4 flex-1 flex flex-col gap-3 overflow-hidden">
           <div>
             <h2 className="text-xs font-semibold text-gray-700 mb-0.5">Suggested Questions</h2>
-            <p className="text-[10px] text-gray-400">Click to ask instantly</p>
+            <p className="text-[10px] text-gray-400">All answers are computed from live platform data</p>
           </div>
-          {/* Category filter pills */}
+
           <div className="flex flex-wrap gap-1">
             {cats.map(c => (
               <button
@@ -129,9 +144,9 @@ export default function Chat() {
               </button>
             ))}
           </div>
-          {/* Question list */}
+
           <div className="flex-1 overflow-y-auto space-y-1.5">
-            {visibleSuggestions.map((item, i) => (
+            {visible.map((item, i) => (
               <button
                 key={i}
                 onClick={() => send(item.q)}
@@ -144,15 +159,20 @@ export default function Chat() {
           </div>
         </div>
 
-        {/* Demo note */}
-        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-          <div className="text-[10px] font-semibold text-amber-700 mb-0.5">Demo Mode</div>
-          <p className="text-[10px] text-amber-600 leading-snug">Responses are simulated. Connect to live data API to enable real-time analysis.</p>
+        {/* Live data badge */}
+        <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-start gap-2">
+          <Database className="w-3.5 h-3.5 text-green-600 shrink-0 mt-0.5" />
+          <div>
+            <div className="text-[10px] font-semibold text-green-700">Live Platform Data</div>
+            <p className="text-[10px] text-green-600 leading-snug mt-0.5">{freshness}</p>
+            <p className="text-[10px] text-green-600 leading-snug">All answers reflect your current register — no external calls.</p>
+          </div>
         </div>
       </div>
 
-      {/* Main chat area */}
-      <div className="flex-1 flex flex-col gap-0 bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+      {/* Chat area */}
+      <div className="flex-1 flex flex-col bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+
         {/* Header */}
         <div className="px-5 py-3.5 border-b border-gray-200 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
@@ -163,7 +183,7 @@ export default function Chat() {
               <div className="text-sm font-semibold text-gray-800">TPRM AI Assistant</div>
               <div className="text-[10px] text-gray-400 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 bg-green-400 rounded-full inline-block" />
-                Online · Powered by Claude
+                Live · Reads all platform data
               </div>
             </div>
           </div>
@@ -185,21 +205,21 @@ export default function Chat() {
               </div>
               <div className="bg-white border border-gray-200 rounded-xl rounded-tl-none px-4 py-3 shadow-sm flex items-center gap-2 text-sm text-gray-400">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                Analyzing…
+                Reading platform data…
               </div>
             </div>
           )}
           <div ref={endRef} />
         </div>
 
-        {/* Input bar */}
+        {/* Input */}
         <div className="px-4 py-3.5 border-t border-gray-200 bg-white shrink-0">
           <div className="flex gap-2.5 items-end">
             <textarea
               ref={inputRef}
               rows={1}
               className="flex-1 text-sm border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 resize-none leading-relaxed"
-              placeholder="Ask about risks, vendors, compliance, or emerging threats…"
+              placeholder="Ask about risks, vendors, issues, KRIs, assessments, SBR…"
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKey}

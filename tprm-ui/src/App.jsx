@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { useEffect } from 'react'
 import Layout from '@/components/layout/Layout'
 import Dashboard from '@/pages/Dashboard'
 import Risks from '@/pages/Risks'
@@ -26,8 +27,23 @@ import BoardPack from '@/pages/BoardPack'
 import ContinuousMonitoring from '@/pages/ContinuousMonitoring'
 import EngagementRisk from '@/pages/EngagementRisk'
 import Assessments from '@/pages/Assessments'
+import ProcessUnityImport from '@/pages/ProcessUnityImport'
+
+// Bump this version string whenever seed data changes to reset stale localStorage
+const SEED_VERSION = 'v2026-09-17'
+
+function useSeedReset() {
+  useEffect(() => {
+    if (localStorage.getItem('tprm:seedVersion') !== SEED_VERSION) {
+      // Clear seed-derived stores so new defaults load on next render
+      ;['tprm:vendors','tprm:risks','tprm:irq'].forEach(k => localStorage.removeItem(k))
+      localStorage.setItem('tprm:seedVersion', SEED_VERSION)
+    }
+  }, [])
+}
 
 export default function App() {
+  useSeedReset()
   return (
     <BrowserRouter basename="/tprm">
       <Routes>
@@ -58,6 +74,7 @@ export default function App() {
           <Route path="monitoring" element={<ContinuousMonitoring />} />
           <Route path="engagements" element={<EngagementRisk />} />
           <Route path="assessments" element={<Assessments />} />
+          <Route path="pu-import"   element={<ProcessUnityImport />} />
         </Route>
       </Routes>
     </BrowserRouter>

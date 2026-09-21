@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, AlertTriangle, Wrench, Building2, ClipboardList,
-  Radio, BarChart2, Landmark, Search, Newspaper, FileText, MessageSquare, GitBranch, Siren, FolderCheck, LogOut, Scale, Layers, ScrollText, Gauge, Stamp, Activity, Package, Handshake, ClipboardCheck
+  Radio, BarChart2, Landmark, Search, Newspaper, FileText, MessageSquare, GitBranch, Siren, FolderCheck, LogOut, Scale, Layers, ScrollText, Gauge, Stamp, Activity, Package, Handshake, ClipboardCheck, ArrowDownToLine
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -53,6 +53,9 @@ const NAV = [
   ]},
   { section: 'AI Assistant',        items: [
     { to: '/chat',      label: 'Ask TPRM AI',           icon: MessageSquare },
+  ]},
+  { section: 'Integrations',        items: [
+    { to: '/pu-import', label: 'ProcessUnity Import',   icon: ArrowDownToLine },
   ]},
 ]
 

@@ -3,47 +3,10 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { Building2, X, ChevronRight, Search, LayoutGrid, List, Edit2, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { VENDORS_INIT, RISKS_SEED, IRQ_INIT, residualScore, levelFromScore } from '@/lib/seedData'
 
-const VENDORS_INIT = [
-  {id:'v1',name:'CloudSystems Inc',tier:'Tier 1',cat:'Cloud / SaaS',st:'Active',con:'Alice Nguyen',email:'alice@cloudsystems.io',cs:'2024-01-15',ce:'2026-12-31',sp:250000,dc:'Restricted',svc:'Primary cloud infrastructure'},
-  {id:'v2',name:'DataSecure LLC',tier:'Tier 1',cat:'Technology',st:'Active',con:'Bob Martinez',email:'bob@datasecure.com',cs:'2023-06-01',ce:'2026-05-31',sp:120000,dc:'Confidential',svc:'Data security monitoring'},
-  {id:'v3',name:'GlobalPay Corp',tier:'Tier 2',cat:'Financial Services',st:'Under Review',con:'Carol Chen',email:'carol@globalpay.com',cs:'2022-03-01',ce:'2025-02-28',sp:85000,dc:'Restricted / PII',svc:'Payment processing'},
-  {id:'v4',name:'LegalEagle LLP',tier:'Tier 2',cat:'Legal',st:'Active',con:'David Lee',email:'david@legaleagle.com',cs:'2021-09-15',ce:'2026-09-14',sp:45000,dc:'Confidential',svc:'Legal counsel'},
-  {id:'v5',name:'FastShip Logistics',tier:'Tier 3',cat:'Logistics',st:'Active',con:'Eva Torres',email:'eva@fastship.com',cs:'2023-11-01',ce:'2025-10-31',sp:30000,dc:'Internal',svc:'Shipping and logistics'},
-  {id:'v6',name:'MedConsult Group',tier:'Tier 4',cat:'Healthcare',st:'Inactive',con:'Frank Patel',email:'frank@medconsult.com',cs:'2020-01-01',ce:'2024-12-31',sp:15000,dc:'None',svc:'Healthcare compliance consulting'},
-]
-
-const RISKS = [
-  {id:'r1',name:'Unpatched software vulnerabilities',vendor:'v1',cat:'Cybersecurity',lik:4,imp:5,ctrl:1,treat:'Mitigate',st:'Open',owner:'S. Kim',due:'2026-09-15'},
-  {id:'r2',name:'Inadequate data encryption at rest',vendor:'v2',cat:'Cybersecurity',lik:3,imp:5,ctrl:1,treat:'Mitigate',st:'In Progress',owner:'T. Wilson',due:'2026-08-30'},
-  {id:'r3',name:'PCI-DSS compliance gap',vendor:'v3',cat:'Compliance',lik:4,imp:4,ctrl:0,treat:'Mitigate',st:'Open',owner:'R. Brown',due:'2026-09-01'},
-  {id:'r4',name:'Vendor financial instability',vendor:'v3',cat:'Financial',lik:3,imp:4,ctrl:1,treat:'Transfer',st:'Open',owner:'M. Davis',due:'2026-10-01'},
-  {id:'r5',name:'Single point of failure – cloud',vendor:'v1',cat:'Business Continuity',lik:2,imp:5,ctrl:2,treat:'Mitigate',st:'In Progress',owner:'S. Kim',due:'2026-12-01'},
-  {id:'r6',name:'Subprocessor data sharing',vendor:'v2',cat:'Privacy & Data',lik:3,imp:4,ctrl:3,treat:'Mitigate',st:'Mitigated',owner:'L. Park',due:'2026-07-15'},
-  {id:'r7',name:'Shipping delays impacting SLA',vendor:'v5',cat:'Operational',lik:3,imp:2,ctrl:1,treat:'Accept',st:'Accepted',owner:'T. Wilson',due:'2026-09-30'},
-  {id:'r8',name:'GDPR erasure non-compliance',vendor:'v1',cat:'Privacy & Data',lik:2,imp:4,ctrl:4,treat:'Mitigate',st:'Mitigated',owner:'L. Park',due:'2026-06-30'},
-  {id:'r9',name:'Insider threat – contractor access',vendor:'v4',cat:'Cybersecurity',lik:2,imp:3,ctrl:2,treat:'Mitigate',st:'Open',owner:'M. Davis',due:'2026-11-01'},
-  {id:'r10',name:'Contract renewal pricing risk',vendor:'v1',cat:'Financial',lik:4,imp:3,ctrl:1,treat:'Accept',st:'Open',owner:'R. Brown',due:'2026-10-15'},
-]
-
-const IRQ_SCORES = [
-  {id:'q1',vendor:'v1',sec:4,priv:3,bcm:4,fin:2,st:'Scored'},
-  {id:'q2',vendor:'v2',sec:3,priv:4,bcm:3,fin:2,st:'Scored'},
-  {id:'q3',vendor:'v3',sec:3,priv:4,bcm:3,fin:4,st:'Scored'},
-  {id:'q4',vendor:'v4',sec:2,priv:2,bcm:2,fin:2,st:'Scored'},
-  {id:'q5',vendor:'v5',sec:1,priv:1,bcm:2,fin:1,st:'Scored'},
-  {id:'q6',vendor:'v6',sec:1,priv:1,bcm:1,fin:1,st:'Not in Scope'},
-]
-
-const CTRL_REDUCTION = [0, 0.25, 0.50, 0.75, 0.90]
-function residual(r) { return Math.max(1, Math.round(r.lik * r.imp * (1 - (CTRL_REDUCTION[r.ctrl] || 0)))) }
-function level(s) {
-  if (s >= 20) return 'Very High'
-  if (s >= 12) return 'High'
-  if (s >= 6)  return 'Moderate'
-  if (s >= 2)  return 'Low'
-  return 'Very Low'
-}
+function residual(r) { return residualScore(r) }
+function level(s)    { return levelFromScore(s) }
 function irqComposite(q) { return +(q.sec*0.4 + q.priv*0.2 + q.bcm*0.3 + q.fin*0.1).toFixed(2) }
 
 const TIER_COLORS = {
@@ -86,9 +49,12 @@ export default function Vendors() {
   const { state } = useLocation()
   const navigate = useNavigate()
   const [vendors, setVendors] = useLocalStorage('tprm:vendors', VENDORS_INIT)
+  const [allRisks]             = useLocalStorage('tprm:risks',   RISKS_SEED)
+  const [allIRQ]               = useLocalStorage('tprm:irq',     IRQ_INIT)
   const [q, setQ] = useState('')
   const [filterTier, setFilterTier] = useState('')
   const [filterSt, setFilterSt] = useState('')
+  const [filterCat, setFilterCat] = useState('')
   const [view, setView] = useState('grid')
   const [drawer, setDrawer] = useState(null)
   const [modal, setModal] = useState(null)
@@ -96,10 +62,11 @@ export default function Vendors() {
 
   useEffect(() => {
     if (!state) return
-    if (state.filterTier)      setFilterTier(state.filterTier)
-    if (state.filterSt)        setFilterSt(state.filterSt)
+    if (state.filterTier) setFilterTier(state.filterTier)
+    if (state.filterSt)   setFilterSt(state.filterSt)
+    if (state.filterCat)  setFilterCat(state.filterCat)
     if (state.openVendorName) {
-      const v = VENDORS_INIT.find(v => v.name === state.openVendorName)
+      const v = vendors.find(v => v.name === state.openVendorName)
       if (v) setDrawer({ id: v.id })
     }
   }, [state])
@@ -107,22 +74,26 @@ export default function Vendors() {
   const filtered = vendors.filter(v => {
     if (q && !v.name.toLowerCase().includes(q.toLowerCase()) && !v.cat.toLowerCase().includes(q.toLowerCase())) return false
     if (filterTier && v.tier !== filterTier) return false
-    if (filterSt && v.st !== filterSt) return false
+    if (filterSt   && v.st  !== filterSt)   return false
+    if (filterCat  && v.cat !== filterCat)  return false
     return true
   })
 
-  function maxResidual(vid) {
-    const vr = RISKS.filter(r => r.vendor === vid)
+  // Risks are stored by vendor name in the live data
+  function vendorRisks(v) {
+    return allRisks.filter(r => r.vendor === v.name || r.vendor === v.id)
+  }
+  function maxResidual(v) {
+    const vr = vendorRisks(v)
     return vr.length ? Math.max(...vr.map(r => residual(r))) : 0
   }
-  function irqScore(vid) {
-    const entry = IRQ_SCORES.find(x => x.vendor === vid)
+  function irqScore(v) {
+    const entry = allIRQ.find(x => x.vendor === v.name || x.vendor === v.id)
     return entry && entry.st === 'Scored' ? irqComposite(entry) : null
   }
-  function hasEscalation(vid) {
-    return RISKS.filter(r => r.vendor === vid).some(r => {
+  function hasEscalation(v) {
+    return vendorRisks(v).some(r => {
       const rl = level(residual(r))
-      const v = vendors.find(x => x.id === vid)
       return rl === 'Very High' || (rl === 'High' && v?.tier === 'Tier 1')
     })
   }
@@ -139,9 +110,9 @@ export default function Vendors() {
     setModal(null)
   }
 
-  const drawerVendor  = drawer ? vendors.find(v => v.id === drawer.id) : null
-  const drawerIRQ     = drawer ? IRQ_SCORES.find(x => x.vendor === drawer.id) : null
-  const drawerRisks   = drawer ? RISKS.filter(r => r.vendor === drawer.id) : []
+  const drawerVendor = drawer ? vendors.find(v => v.id === drawer.id) : null
+  const drawerIRQ    = drawerVendor ? allIRQ.find(x => x.vendor === drawerVendor.name || x.vendor === drawerVendor.id) : null
+  const drawerRisks  = drawerVendor ? vendorRisks(drawerVendor) : []
 
   const kpis = [
     { label:'Total Vendors', value: vendors.length,                              color:'text-gray-800'  },
@@ -184,6 +155,10 @@ export default function Vendors() {
           <option value="">All Status</option>
           {['Active','Under Review','Inactive'].map(s=><option key={s}>{s}</option>)}
         </select>
+        <select className="text-xs border border-gray-200 rounded px-2 py-2 focus:outline-none focus:border-blue-400" value={filterCat} onChange={e=>setFilterCat(e.target.value)}>
+          <option value="">All Categories</option>
+          {[...new Set(vendors.map(v=>v.cat))].sort().map(c=><option key={c}>{c}</option>)}
+        </select>
         <div className="flex border border-gray-200 rounded overflow-hidden ml-auto">
           <button onClick={()=>setView('grid')} className={cn('px-3 py-2', view==='grid' ? 'bg-[#0176d3] text-white' : 'bg-white text-gray-500 hover:bg-gray-50')}><LayoutGrid className="w-3.5 h-3.5" /></button>
           <button onClick={()=>setView('list')} className={cn('px-3 py-2', view==='list' ? 'bg-[#0176d3] text-white' : 'bg-white text-gray-500 hover:bg-gray-50')}><List className="w-3.5 h-3.5" /></button>
@@ -193,7 +168,7 @@ export default function Vendors() {
       {view === 'grid' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(v => {
-            const mr = maxResidual(v.id); const irq = irqScore(v.id); const esc = hasEscalation(v.id)
+            const mr = maxResidual(v); const irq = irqScore(v); const esc = hasEscalation(v)
             return (
               <div key={v.id} onClick={()=>setDrawer({id:v.id})} className="bg-white border border-gray-200 rounded-lg p-4 cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all">
                 <div className="flex items-start justify-between mb-2">
@@ -249,7 +224,7 @@ export default function Vendors() {
             </thead>
             <tbody>
               {filtered.map((v, i) => {
-                const mr = maxResidual(v.id); const irq = irqScore(v.id)
+                const mr = maxResidual(v); const irq = irqScore(v)
                 return (
                   <tr key={v.id} onClick={()=>setDrawer({id:v.id})} className={cn('border-b border-gray-100 cursor-pointer hover:bg-blue-50 transition-colors', i%2===1&&'bg-gray-50/40')}>
                     <td className="px-3 py-2.5 font-medium text-gray-800">{v.name}</td>
@@ -321,8 +296,8 @@ export default function Vendors() {
                 </button>
                 <div className="bg-gray-50 rounded-lg p-3 text-center">
                   <div className="text-[10px] text-gray-400 mb-1">IRQ Score</div>
-                  <div className={cn('text-lg font-bold', irqScore(drawerVendor.id)?'text-orange-500':'text-gray-400')}>
-                    {irqScore(drawerVendor.id)?irqScore(drawerVendor.id).toFixed(2):'Pending'}
+                  <div className={cn('text-lg font-bold', irqScore(drawerVendor?.id)?'text-orange-500':'text-gray-400')}>
+                    {irqScore(drawerVendor?.id)?irqScore(drawerVendor?.id).toFixed(2):'Pending'}
                   </div>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-3 text-center">

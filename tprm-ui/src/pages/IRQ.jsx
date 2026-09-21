@@ -2,21 +2,9 @@ import { useState } from 'react'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { X, Plus, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { VENDORS_INIT, IRQ_INIT } from '@/lib/seedData'
 
-const VENDORS = [
-  {id:'v1',name:'CloudSystems Inc',tier:'Tier 1'},{id:'v2',name:'DataSecure LLC',tier:'Tier 1'},
-  {id:'v3',name:'GlobalPay Corp',tier:'Tier 2'},{id:'v4',name:'LegalEagle LLP',tier:'Tier 2'},
-  {id:'v5',name:'FastShip Logistics',tier:'Tier 3'},{id:'v6',name:'MedConsult Group',tier:'Tier 4'},
-]
-
-const IRQ_INIT = [
-  {id:'q1',vendor:'v1',sec:4,priv:3,bcm:4,fin:2,st:'Scored',notes:'Strong security posture but BCM gaps noted.'},
-  {id:'q2',vendor:'v2',sec:3,priv:4,bcm:3,fin:2,st:'Scored',notes:'Privacy controls strong. Security needs improvement.'},
-  {id:'q3',vendor:'v3',sec:3,priv:4,bcm:3,fin:4,st:'Scored',notes:'Financial risk elevated. PCI gap serious.'},
-  {id:'q4',vendor:'v4',sec:2,priv:2,bcm:2,fin:2,st:'Scored',notes:'Low exposure – legal advisory only.'},
-  {id:'q5',vendor:'v5',sec:1,priv:1,bcm:2,fin:1,st:'Scored',notes:'Very low risk profile.'},
-  {id:'q6',vendor:'v6',sec:1,priv:1,bcm:1,fin:1,st:'Not in Scope',notes:'Contract ended.'},
-]
+const VENDORS = VENDORS_INIT
 
 function composite(q) { return +(q.sec*0.4 + q.priv*0.2 + q.bcm*0.3 + q.fin*0.1).toFixed(2) }
 function irqLevel(c) {
@@ -48,7 +36,7 @@ function DomainBar({ value, color }) {
   )
 }
 
-const EMPTY = { vendor:'v1', sec:3, priv:3, bcm:3, fin:3, st:'Pending', notes:'' }
+const EMPTY = { vendor:'Amazon Web Services', sec:3, priv:3, bcm:3, fin:3, st:'Pending', notes:'' }
 
 export default function IRQ() {
   const [data, setData] = useLocalStorage('tprm:irq', IRQ_INIT)
@@ -63,7 +51,7 @@ export default function IRQ() {
   const avgComp   = scored.length ? (scored.reduce((s,x)=>s+composite(x),0)/scored.length).toFixed(2) : '—'
 
   const filtered = data.filter(x => {
-    const vname = VENDORS.find(v=>v.id===x.vendor)?.name || ''
+    const vname = VENDORS.find(v=>v.id===x.vendor || v.name===x.vendor)?.name || x.vendor
     if (q && !vname.toLowerCase().includes(q.toLowerCase())) return false
     if (filterSt && x.st !== filterSt) return false
     return true
@@ -134,8 +122,8 @@ export default function IRQ() {
           <tbody>
             {filtered.length === 0 && <tr><td colSpan={11} className="px-3 py-8 text-center text-gray-400">No records found</td></tr>}
             {filtered.map((x, i) => {
-              const vname = VENDORS.find(v=>v.id===x.vendor)?.name || x.vendor
-              const vtier = VENDORS.find(v=>v.id===x.vendor)?.tier || ''
+              const vname = VENDORS.find(v=>v.id===x.vendor || v.name===x.vendor)?.name || x.vendor
+              const vtier = VENDORS.find(v=>v.id===x.vendor || v.name===x.vendor)?.tier || ''
               const comp  = x.st==='Scored' ? composite(x) : null
               const lvl   = comp ? irqLevel(comp) : null
               return (
@@ -178,7 +166,7 @@ export default function IRQ() {
               <div>
                 <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Vendor</label>
                 <select className="w-full text-xs border border-gray-200 rounded px-2.5 py-2 focus:outline-none focus:border-blue-400" value={form.vendor} onChange={e=>setForm(p=>({...p,vendor:e.target.value}))}>
-                  {VENDORS.map(v=><option key={v.id} value={v.id}>{v.name} ({v.tier})</option>)}
+                  {VENDORS.map(v=><option key={v.id} value={v.name}>{v.name} ({v.tier})</option>)}
                 </select>
               </div>
               {[
