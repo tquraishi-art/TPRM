@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { Edit2, Plus, X, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp } from 'lucide-react'
@@ -248,9 +248,8 @@ export default function KRI() {
                 const s  = statusStyles(st)
                 const isExpanded = expandedId === kri.id
                 return (
-                  <>
+                  <React.Fragment key={kri.id}>
                     <tr
-                      key={kri.id}
                       onClick={() => toggleExpand(kri.id)}
                       className={cn('hover:bg-gray-50 transition-colors cursor-pointer', isExpanded && 'bg-blue-50')}
                     >
@@ -305,7 +304,7 @@ export default function KRI() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </React.Fragment>
                 )
               })}
               {filtered.length === 0 && (
