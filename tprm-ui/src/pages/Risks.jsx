@@ -1,7 +1,7 @@
 import { useState, Fragment, useEffect } from 'react'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Search, Plus, Pencil, X, Check, AlertTriangle } from 'lucide-react'
+import { Search, Plus, Pencil, X, Check, AlertTriangle, Grid3x3, List, GitBranch } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { VENDORS_INIT, RISKS_SEED } from '@/lib/seedData'
 
@@ -113,6 +113,204 @@ function FormField({ label, children }) {
   )
 }
 
+// ─── 5×5 Heatmap ──────────────────────────────────────────────────────────────
+
+const CELL_COLOR = (score) => {
+  if (score >= 20) return '#fecaca' // red-200
+  if (score >= 12) return '#fed7aa' // orange-200
+  if (score >= 6)  return '#fef08a' // yellow-200
+  if (score >= 2)  return '#bfdbfe' // blue-200
+  return '#bbf7d0'                  // green-200
+}
+const CELL_TEXT = (score) => {
+  if (score >= 20) return '#991b1b'
+  if (score >= 12) return '#9a3412'
+  if (score >= 6)  return '#854d0e'
+  if (score >= 2)  return '#1e40af'
+  return '#166534'
+}
+
+function RiskHeatmap({ risks }) {
+  const [hover, setHover] = useState(null) // {row,col,type}
+  const [tooltip, setTooltip] = useState(null) // {risks:[...], x, y, label}
+
+  function getRisksAt(lik, imp, type) {
+    return risks.filter(r => {
+      if (r.lik !== lik || r.imp !== imp) return false
+      if (type === 'inherent') return true
+      return true // residual: lik/imp might differ after ctrl, so group by inherent coords for visual clarity
+    })
+  }
+
+  function getResidualAt(resScore) {
+    // find risks whose residual score equals the given cell's score
+    return risks.filter(r => residual(r) === resScore)
+  }
+
+  // Build cell data for inherent (lik × imp) and residual (grouped by residual score)
+  function inherentCell(lik, imp) {
+    const score = lik * imp
+    const rs = risks.filter(r => r.lik === lik && r.imp === imp)
+    return { score, rs }
+  }
+  function residualCell(lik, imp) {
+    // For residual heatmap, we use inherent coords but show residual score in the cell
+    // The color is driven by residual score range
+    const rs = risks.filter(r => r.lik === lik && r.imp === imp)
+    if (rs.length === 0) return { score: lik * imp, rs: [] }
+    const avgRes = Math.round(rs.reduce((s, r) => s + residual(r), 0) / rs.length)
+    return { score: avgRes, rs }
+  }
+
+  const likelihoods = [5, 4, 3, 2, 1]
+  const impacts     = [1, 2, 3, 4, 5]
+
+  function Cell({ cellData, type, lik, imp }) {
+    const { score, rs } = cellData
+    const bg = CELL_COLOR(score)
+    const tc = CELL_TEXT(score)
+    return (
+      <td
+        className="relative border border-white cursor-pointer transition-all"
+        style={{ background: bg, width: 68, height: 52 }}
+        onMouseEnter={e => {
+          if (rs.length > 0) {
+            const rect = e.currentTarget.getBoundingClientRect()
+            setTooltip({ rs, x: rect.left + rect.width / 2, y: rect.top, type, lik, imp })
+          }
+        }}
+        onMouseLeave={() => setTooltip(null)}
+      >
+        <div className="flex flex-col items-center justify-center h-full gap-0.5">
+          {rs.length > 0 && (
+            <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+              style={{ background: tc }}>
+              {rs.length}
+            </div>
+          )}
+          <div className="text-[9px] font-semibold" style={{ color: tc }}>{score}</div>
+        </div>
+      </td>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Legend */}
+      <div className="flex flex-wrap items-center gap-3 text-[10px]">
+        {[['Very High', '#fecaca', '#991b1b'], ['High', '#fed7aa', '#9a3412'], ['Moderate', '#fef08a', '#854d0e'], ['Low', '#bfdbfe', '#1e40af'], ['Very Low', '#bbf7d0', '#166534']].map(([l, bg, tc]) => (
+          <div key={l} className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded-sm border border-gray-200" style={{ background: bg }} />
+            <span style={{ color: tc }} className="font-semibold">{l}</span>
+          </div>
+        ))}
+        <span className="text-gray-400 ml-2">· Circle = # risks · Number = score</span>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {[['Inherent Risk', 'inherent', inherentCell], ['Residual Risk (after controls)', 'residual', residualCell]].map(([title, type, cellFn]) => (
+          <div key={type}>
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">{title}</h3>
+            <div className="flex gap-3">
+              {/* Y axis label */}
+              <div className="flex flex-col items-center justify-center w-5">
+                <span className="text-[9px] text-gray-400 font-semibold uppercase tracking-widest" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>Likelihood →</span>
+              </div>
+              <div>
+                <table className="border-collapse">
+                  <tbody>
+                    {likelihoods.map(lik => (
+                      <tr key={lik}>
+                        <td className="pr-2 text-[10px] font-semibold text-gray-500 text-right w-4">{lik}</td>
+                        {impacts.map(imp => (
+                          <Cell key={imp} cellData={cellFn(lik, imp)} type={type} lik={lik} imp={imp} />
+                        ))}
+                      </tr>
+                    ))}
+                    <tr>
+                      <td />
+                      {impacts.map(imp => (
+                        <td key={imp} className="pt-1 text-center text-[10px] font-semibold text-gray-500">{imp}</td>
+                      ))}
+                    </tr>
+                  </tbody>
+                </table>
+                <div className="text-center text-[9px] text-gray-400 font-semibold uppercase tracking-widest mt-1">Impact →</div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tooltip */}
+      {tooltip && tooltip.rs.length > 0 && (
+        <div
+          className="fixed z-50 bg-white border border-gray-200 shadow-xl rounded-lg p-3 text-xs max-w-xs pointer-events-none"
+          style={{ left: tooltip.x, top: tooltip.y - 8, transform: 'translate(-50%, -100%)' }}
+        >
+          <div className="font-semibold text-gray-700 mb-1.5 text-[10px] uppercase tracking-wide">
+            {tooltip.type === 'inherent' ? `Inherent L${tooltip.lik}×I${tooltip.imp} = ${tooltip.lik * tooltip.imp}` : `Residual (L${tooltip.lik}×I${tooltip.imp})`}
+          </div>
+          <ul className="space-y-1">
+            {tooltip.rs.slice(0, 5).map(r => (
+              <li key={r.id} className="flex items-start gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-1 shrink-0" />
+                <span className="text-gray-700 leading-snug">{r.name.slice(0, 50)}{r.name.length > 50 ? '…' : ''}</span>
+              </li>
+            ))}
+            {tooltip.rs.length > 5 && <li className="text-gray-400">+{tooltip.rs.length - 5} more</li>}
+          </ul>
+        </div>
+      )}
+
+      {/* Summary table */}
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Control Effectiveness Summary</span>
+        </div>
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-gray-100 bg-gray-50/50">
+              {['Risk', 'Vendor', 'Inherent', 'Control', 'Residual', 'Reduction'].map(h => (
+                <th key={h} className="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {[...risks].sort((a, b) => (inherent(b) - residual(b)) - (inherent(a) - residual(a))).slice(0, 10).map(r => {
+              const inh = inherent(r)
+              const res = residual(r)
+              const reduction = Math.round(((inh - res) / inh) * 100)
+              return (
+                <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                  <td className="px-3 py-2 text-gray-700 max-w-[200px] truncate">{r.name}</td>
+                  <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{r.vendor}</td>
+                  <td className="px-3 py-2">
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: CELL_COLOR(inh), color: CELL_TEXT(inh) }}>{inh}</span>
+                  </td>
+                  <td className="px-3 py-2 text-gray-500">{['None','Low','Moderate','Strong','Very Strong'][r.ctrl] || r.ctrl}</td>
+                  <td className="px-3 py-2">
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: CELL_COLOR(res), color: CELL_TEXT(res) }}>{res}</span>
+                  </td>
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-1.5">
+                      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden max-w-[60px]">
+                        <div className="h-full bg-green-400 rounded-full" style={{ width: `${reduction}%` }} />
+                      </div>
+                      <span className="text-[10px] text-green-600 font-semibold">{reduction}%</span>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+        <div className="px-4 py-2 text-[10px] text-gray-400 border-t border-gray-100">Showing top 10 risks by control reduction. Residual = Inherent × (1 − control effectiveness).</div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Risks() {
@@ -154,6 +352,7 @@ export default function Risks() {
   })
 
   const activeCount = risks.filter(r => r.st === 'Open' || r.st === 'In Progress').length
+  const [view, setView] = useState('list') // 'list' | 'heatmap'
 
   function openAdd() {
     setEditRisk(null)
@@ -207,12 +406,22 @@ export default function Risks() {
           <h1 className="text-lg font-semibold text-gray-800">Risk Register</h1>
           <p className="text-xs text-gray-400 mt-0.5">{risks.length} risks · {activeCount} active</p>
         </div>
-        <button
-          onClick={openAdd}
-          className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
-        >
-          <Plus className="w-3.5 h-3.5" /> Add Risk
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs">
+            <button onClick={() => setView('list')} className={cn('flex items-center gap-1.5 px-3 py-2 transition-colors', view === 'list' ? 'bg-blue-50 text-[#0176d3] font-semibold' : 'text-gray-500 hover:bg-gray-50')}>
+              <List className="w-3.5 h-3.5" /> List
+            </button>
+            <button onClick={() => setView('heatmap')} className={cn('flex items-center gap-1.5 px-3 py-2 border-l border-gray-200 transition-colors', view === 'heatmap' ? 'bg-blue-50 text-[#0176d3] font-semibold' : 'text-gray-500 hover:bg-gray-50')}>
+              <Grid3x3 className="w-3.5 h-3.5" /> Heatmap
+            </button>
+          </div>
+          <button
+            onClick={openAdd}
+            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" /> Add Risk
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -264,7 +473,15 @@ export default function Risks() {
         )}
       </div>
 
+      {/* Heatmap view */}
+      {view === 'heatmap' && (
+        <div className="bg-white border border-gray-200 rounded-lg p-5">
+          <RiskHeatmap risks={filtered} />
+        </div>
+      )}
+
       {/* Table */}
+      {view === 'list' && (
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-xs min-w-[960px]">
@@ -386,6 +603,20 @@ export default function Risks() {
                               <p className="text-gray-700 font-medium">{r.due || '—'}</p>
                             </div>
                           </div>
+                          <div className="mt-3 flex items-center gap-2">
+                            <button
+                              onClick={e => { e.stopPropagation(); navigate('/issues', { state: { spawnFromRisk: r } }) }}
+                              className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                            >
+                              <GitBranch className="w-3 h-3" /> Raise Issue from this Risk
+                            </button>
+                            <button
+                              onClick={e => { e.stopPropagation(); navigate('/issues', { state: { filterRiskId: r.id } }) }}
+                              className="text-[11px] px-3 py-1.5 border border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+                            >
+                              View Linked Issues
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     )}
@@ -399,6 +630,7 @@ export default function Risks() {
           Showing {filtered.length} of {risks.length} risks
         </div>
       </div>
+      )}
 
       {/* Add / Edit modal — right-side sliding panel */}
       {modalOpen && (

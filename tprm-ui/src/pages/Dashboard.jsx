@@ -190,6 +190,7 @@ export default function Dashboard() {
   }, [rawVendors, RISKS])
 
   const escalated = RISKS.filter(r => r.escalate)
+  const deterioratingVendors = rawVendors.filter(v => v.fh === 'Deteriorating')
   const vhCount   = RISKS.filter(r => level(r.residual) === 'Very High').length
   const hCount    = RISKS.filter(r => level(r.residual) === 'High').length
   const openCount = RISKS.filter(r => r.status === 'Open' || r.status === 'In Progress').length
@@ -254,6 +255,19 @@ export default function Dashboard() {
             <strong className="text-red-600">{escalated.length} risk(s) require escalation.</strong>
             {' '}Very High residual risks must be reviewed monthly by TPRM leadership. High overdue risks require immediate attention.{' '}
             <button onClick={() => navigate('/risks', { state:{ filterEsc:true } })} className="text-red-600 underline font-semibold hover:text-red-800">View escalated risks →</button>
+          </div>
+        </div>
+      )}
+
+      {/* Deteriorating vendor alert */}
+      {deterioratingVendors.length > 0 && (
+        <div className="bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 flex items-start gap-3">
+          <span className="text-orange-500 text-sm mt-0.5">⚠</span>
+          <div className="text-xs text-gray-700">
+            <strong className="text-orange-700">{deterioratingVendors.length} vendor{deterioratingVendors.length > 1 ? 's' : ''} with Deteriorating financial health: </strong>
+            {deterioratingVendors.map(v => v.name).join(', ')}.{' '}
+            Review exit readiness and contingency plans.{' '}
+            <button onClick={() => navigate('/exit-plan')} className="text-orange-600 underline font-semibold hover:text-orange-800">View exit plans →</button>
           </div>
         </div>
       )}

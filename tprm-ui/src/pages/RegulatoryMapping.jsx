@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { VENDORS_INIT } from '@/lib/seedData'
 
 // ─── Framework definitions ────────────────────────────────────────────────────
 
@@ -203,13 +204,60 @@ const FRAMEWORK_IDS   = FRAMEWORKS.map(f => f.id)
 
 const FW_COLOR = Object.fromEntries(FRAMEWORKS.map(f => [f.id, f.color]))
 
+// ─── Per-vendor regulatory determination ─────────────────────────────────────
+// Determine which frameworks apply to each vendor based on regions and access flags
+
+function vendorFrameworks(vendor) {
+  const f = vendor.flags || []
+  const r = vendor.regions || []
+  const applicable = []
+
+  // GDPR — EMEA region + any data flag
+  if (r.includes('EMEA') && (f.includes('PII') || f.includes('CD'))) {
+    applicable.push({ id: 'gdpr', reason: 'EMEA presence with PII/CD data access' })
+  }
+  // CCPA — AMER region + PII flag
+  if (r.includes('AMER') && f.includes('PII')) {
+    applicable.push({ id: 'ccpa', reason: 'AMER operations processing California resident personal data' })
+  }
+  // DORA — ICT vendor (IT, Net, Src flags) regardless of region
+  if (f.includes('IT') || f.includes('Net') || f.includes('Src')) {
+    applicable.push({ id: 'dora', reason: 'ICT third-party service provider (IT/Net/Src access flags)' })
+  }
+  // NIS2 — EMEA + IT/Net/Src
+  if (r.includes('EMEA') && (f.includes('IT') || f.includes('Net') || f.includes('Src'))) {
+    applicable.push({ id: 'nis2', reason: 'EU-region ICT/network service provider — NIS2 essential/important entity supply chain' })
+  }
+  // SOX — financial controls or large spend
+  if (f.includes('CD') || (vendor.sp && vendor.sp > 50000000)) {
+    applicable.push({ id: 'sox', reason: 'Processes or accesses data relevant to financial reporting controls (CD flag or material spend)' })
+  }
+  // PCI-DSS — CD flag (cardholder/confidential data)
+  if (f.includes('CD')) {
+    applicable.push({ id: 'pci', reason: 'Cardholder or confidential data (CD flag) — PCI-DSS TPSP management requirements apply' })
+  }
+
+  return applicable
+}
+
+const ACCESS_FLAG_LABELS = {
+  CD:  { label:'CD',  desc:'Cardholder / Confidential Data',   color:'bg-red-100 text-red-700' },
+  PII: { label:'PII', desc:'Personally Identifiable Information', color:'bg-purple-100 text-purple-700' },
+  IT:  { label:'IT',  desc:'IT / Technology Systems Access',   color:'bg-blue-100 text-blue-700' },
+  Fac: { label:'Fac', desc:'Physical Facilities Access',       color:'bg-yellow-100 text-yellow-700' },
+  Net: { label:'Net', desc:'Network / Connectivity Access',    color:'bg-cyan-100 text-cyan-700' },
+  Src: { label:'Src', desc:'Source Code Access',               color:'bg-orange-100 text-orange-700' },
+}
+
 export default function RegulatoryMapping() {
   const navigate = useNavigate()
   const [q, setQ]                     = useState('')
   const [filterCat, setFilterCat]     = useState('')
   const [filterFw, setFilterFw]       = useState('')
+  const [filterVendor, setFilterVendor] = useState('')
   const [expandedKey, setExpandedKey] = useState(null)
-  const [view, setView]               = useState('list') // 'list' | 'matrix'
+  const [expandedVendor, setExpandedVendor] = useState(null)
+  const [view, setView]               = useState('list') // 'list' | 'matrix' | 'vendor'
 
   const filtered = MAPPINGS.filter(m => {
     if (filterCat && m.riskCategory !== filterCat) return false
@@ -241,6 +289,7 @@ export default function RegulatoryMapping() {
         <div className="flex items-center gap-2">
           <button onClick={() => setView('list')}   className={cn('text-xs px-3 py-1.5 rounded border', view==='list'   ? 'bg-blue-50 border-blue-300 text-blue-700 font-semibold' : 'border-gray-200 text-gray-500 hover:border-gray-300')}>List</button>
           <button onClick={() => setView('matrix')} className={cn('text-xs px-3 py-1.5 rounded border', view==='matrix' ? 'bg-blue-50 border-blue-300 text-blue-700 font-semibold' : 'border-gray-200 text-gray-500 hover:border-gray-300')}>Coverage Matrix</button>
+          <button onClick={() => setView('vendor')} className={cn('text-xs px-3 py-1.5 rounded border', view==='vendor' ? 'bg-blue-50 border-blue-300 text-blue-700 font-semibold' : 'border-gray-200 text-gray-500 hover:border-gray-300')}>Vendor View</button>
         </div>
       </div>
 
@@ -259,7 +308,95 @@ export default function RegulatoryMapping() {
         ))}
       </div>
 
-      {view === 'matrix' ? (
+      {view === 'vendor' ? (
+        /* ── Per-vendor regulatory view ── */
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-2 items-center">
+            <div className="relative flex-1 min-w-[180px]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+              <input className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded focus:outline-none focus:border-blue-400" placeholder="Search vendor…" value={filterVendor} onChange={e => setFilterVendor(e.target.value)} />
+            </div>
+            {filterVendor && <button onClick={() => setFilterVendor('')} className="text-xs text-blue-500 hover:text-blue-700 px-2">Clear</button>}
+          </div>
+          {VENDORS_INIT.filter(v => !filterVendor || v.name.toLowerCase().includes(filterVendor.toLowerCase())).map(v => {
+            const applicable = vendorFrameworks(v)
+            const open = expandedVendor === v.id
+            return (
+              <div key={v.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                <button
+                  className="w-full px-4 py-3 flex items-start gap-3 text-left hover:bg-gray-50 transition-colors"
+                  onClick={() => setExpandedVendor(x => x === v.id ? null : v.id)}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-sm text-gray-800">{v.name}</span>
+                      <span className="text-[10px] text-gray-400">{v.tier}</span>
+                      {/* Access flags */}
+                      {(v.flags||[]).map(f => (
+                        <span key={f} className={cn('text-[9px] font-bold px-1.5 py-0.5 rounded', ACCESS_FLAG_LABELS[f]?.color || 'bg-gray-100 text-gray-500')}>
+                          {f}
+                        </span>
+                      ))}
+                      {/* Regions */}
+                      {(v.regions||[]).map(r => (
+                        <span key={r} className="text-[9px] font-medium bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">{r}</span>
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {applicable.length === 0 ? (
+                        <span className="text-[10px] text-gray-400">No specific framework obligations determined</span>
+                      ) : applicable.map(a => {
+                        const fw = FRAMEWORKS.find(f => f.id === a.id)
+                        return <span key={a.id} className={cn('text-[10px] font-bold px-2 py-0.5 rounded border', fw?.color || 'bg-gray-100 text-gray-500 border-gray-200')}>{fw?.name}</span>
+                      })}
+                    </div>
+                  </div>
+                  {open ? <ChevronDown className="w-4 h-4 text-gray-400 shrink-0 mt-1" /> : <ChevronRight className="w-4 h-4 text-gray-400 shrink-0 mt-1" />}
+                </button>
+
+                {open && (
+                  <div className="border-t border-gray-100 px-4 pb-4 bg-gray-50/40">
+                    {applicable.length === 0 ? (
+                      <p className="text-xs text-gray-400 py-3">No specific regulatory obligations auto-determined for this vendor based on current flags and regions. Review manually.</p>
+                    ) : (
+                      <div className="space-y-3 pt-3">
+                        {applicable.map(a => {
+                          const fw = FRAMEWORKS.find(f => f.id === a.id)
+                          const obligations = MAPPINGS.filter(m => m.framework === a.id)
+                          return (
+                            <div key={a.id} className={cn('border rounded-lg overflow-hidden', fw?.color.replace(/bg-\S+\s/, '').replace('text-', 'border-') || 'border-gray-200')}>
+                              <div className={cn('px-3 py-2 flex items-center gap-2', fw?.color.split(' ')[0] || 'bg-gray-50')}>
+                                <span className="text-xs font-bold">{fw?.name}</span>
+                                <span className="text-[10px] opacity-75">— {fw?.fullName}</span>
+                                <span className="ml-auto text-[10px] opacity-75">{a.reason}</span>
+                              </div>
+                              <div className="bg-white divide-y divide-gray-50">
+                                {obligations.map(ob => (
+                                  <div key={ob.articleRef} className="px-3 py-2 text-xs">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-semibold text-gray-700">{ob.obligation}</span>
+                                      <span className="text-[10px] text-gray-400">{ob.articleRef}</span>
+                                    </div>
+                                    <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">{ob.requirementSummary}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )
+                        })}
+                        <div className="flex gap-3 text-[11px] pt-1">
+                          <button onClick={() => navigate('/vendors', { state: { openVendorName: v.name } })} className="text-blue-500 hover:underline">Vendor profile →</button>
+                          <button onClick={() => navigate('/risks', { state: { filterVendor: v.name } })} className="text-blue-500 hover:underline">Risks →</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      ) : view === 'matrix' ? (
         /* ── Coverage matrix ── */
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           <table className="w-full text-xs">

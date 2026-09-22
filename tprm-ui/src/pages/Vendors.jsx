@@ -15,6 +15,13 @@ const TIER_COLORS = {
   'Tier 3': 'bg-yellow-100 text-yellow-700',
   'Tier 4': 'bg-gray-100 text-gray-500',
 }
+
+const FH_COLORS = {
+  'Strong':       'bg-green-100 text-green-700',
+  'Stable':       'bg-blue-100 text-blue-700',
+  'Deteriorating':'bg-red-100 text-red-700',
+  'Unknown':      'bg-gray-100 text-gray-500',
+}
 const STATUS_COLORS = {
   'Active':       'bg-green-100 text-green-700',
   'Under Review': 'bg-orange-100 text-orange-700',
@@ -191,6 +198,7 @@ export default function Vendors() {
                   >
                     <Badge label={v.st} colorClass={STATUS_COLORS[v.st]} />
                   </button>
+                  {v.fh && <Badge label={v.fh} colorClass={FH_COLORS[v.fh] || 'bg-gray-100 text-gray-500'} />}
                 </div>
                 <div className="flex items-end justify-between text-xs">
                   <div>
@@ -217,7 +225,7 @@ export default function Vendors() {
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                {['Vendor','Category','Tier','Status','Max Residual','IRQ Score','Spend','Contract End',''].map(h=>(
+                {['Vendor','Category','Tier','Status','Max Residual','IRQ Score','Fin. Health','Spend','Contract End',''].map(h=>(
                   <th key={h} className="px-3 py-2.5 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -241,6 +249,7 @@ export default function Vendors() {
                     </td>
                     <td className="px-3 py-2.5">{mr>0 ? <Badge label={level(mr)} colorClass={LEVEL_COLORS[level(mr)]} /> : <span className="text-gray-300">—</span>}</td>
                     <td className="px-3 py-2.5 font-bold" style={{color:irq?(irq>=3.5?'#ef4444':irq>=2.5?'#f97316':'#22c55e'):'#d1d5db'}}>{irq?irq.toFixed(2):'—'}</td>
+                    <td className="px-3 py-2.5">{v.fh ? <Badge label={v.fh} colorClass={FH_COLORS[v.fh]||'bg-gray-100 text-gray-500'} /> : <span className="text-gray-300">—</span>}</td>
                     <td className="px-3 py-2.5 text-gray-500">{v.sp?'$'+Number(v.sp).toLocaleString():'—'}</td>
                     <td className="px-3 py-2.5 text-gray-400">{v.ce||'—'}</td>
                     <td className="px-3 py-2.5" onClick={e=>e.stopPropagation()}>
@@ -296,14 +305,42 @@ export default function Vendors() {
                 </button>
                 <div className="bg-gray-50 rounded-lg p-3 text-center">
                   <div className="text-[10px] text-gray-400 mb-1">IRQ Score</div>
-                  <div className={cn('text-lg font-bold', irqScore(drawerVendor?.id)?'text-orange-500':'text-gray-400')}>
-                    {irqScore(drawerVendor?.id)?irqScore(drawerVendor?.id).toFixed(2):'Pending'}
+                  <div className={cn('text-lg font-bold', irqScore(drawerVendor)?'text-orange-500':'text-gray-400')}>
+                    {irqScore(drawerVendor)?irqScore(drawerVendor).toFixed(2):'Pending'}
                   </div>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-3 text-center">
                   <div className="text-[10px] text-gray-400 mb-1">Spend</div>
                   <div className="text-lg font-bold text-gray-800">{drawerVendor.sp?'$'+Number(drawerVendor.sp).toLocaleString():'—'}</div>
                 </div>
+              </div>
+              {/* Financial health + access flags in drawer */}
+              <div className="flex items-center gap-3 flex-wrap">
+                {drawerVendor.fh && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Financial Health</span>
+                    <Badge label={drawerVendor.fh} colorClass={FH_COLORS[drawerVendor.fh]||'bg-gray-100 text-gray-500'} />
+                    {drawerVendor.fh === 'Deteriorating' && (
+                      <span className="text-[10px] text-red-600 font-semibold">⚠ Elevated exit risk</span>
+                    )}
+                  </div>
+                )}
+                {(drawerVendor.flags||[]).length > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Access Flags</span>
+                    {drawerVendor.flags.map(f => (
+                      <span key={f} className="text-[10px] font-bold bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{f}</span>
+                    ))}
+                  </div>
+                )}
+                {(drawerVendor.regions||[]).length > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Regions</span>
+                    {drawerVendor.regions.map(r => (
+                      <span key={r} className="text-[10px] font-bold bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">{r}</span>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3 text-xs">
                 {[['Contact',drawerVendor.con],['Email',drawerVendor.email],['Contract Start',drawerVendor.cs],['Contract End',drawerVendor.ce],['Annual Spend',drawerVendor.sp?'$'+Number(drawerVendor.sp).toLocaleString():'—'],['Data Classification',drawerVendor.dc],['Services',drawerVendor.svc]].map(([l,v])=>(

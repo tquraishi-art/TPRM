@@ -30,6 +30,8 @@ const ContinuousMonitoring= lazy(() => import('@/pages/ContinuousMonitoring'))
 const EngagementRisk      = lazy(() => import('@/pages/EngagementRisk'))
 const Assessments         = lazy(() => import('@/pages/Assessments'))
 const ProcessUnityImport  = lazy(() => import('@/pages/ProcessUnityImport'))
+const ExitPlan            = lazy(() => import('@/pages/ExitPlan'))
+const Questionnaires      = lazy(() => import('@/pages/Questionnaires'))
 
 // ─── Page loading fallback ────────────────────────────────────────────────────
 function PageLoader() {
@@ -82,12 +84,12 @@ class ErrorBoundary extends Component {
 
 // ─── Seed reset ───────────────────────────────────────────────────────────────
 // Bump this version string whenever seed data changes to reset stale localStorage
-const SEED_VERSION = 'v2026-09-17'
+const SEED_VERSION = 'v2026-09-21'
 
 function useSeedReset() {
   useEffect(() => {
     if (localStorage.getItem('tprm:seedVersion') !== SEED_VERSION) {
-      ;['tprm:vendors', 'tprm:risks', 'tprm:irq'].forEach(k => localStorage.removeItem(k))
+      ;['tprm:vendors', 'tprm:risks', 'tprm:irq', 'tprm:issues'].forEach(k => localStorage.removeItem(k))
       localStorage.setItem('tprm:seedVersion', SEED_VERSION)
     }
   }, [])
@@ -128,6 +130,8 @@ export default function App() {
             <Route path="engagements" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><EngagementRisk /></ErrorBoundary></Suspense>} />
             <Route path="assessments" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><Assessments /></ErrorBoundary></Suspense>} />
             <Route path="pu-import"   element={<Suspense fallback={<PageLoader />}><ErrorBoundary><ProcessUnityImport /></ErrorBoundary></Suspense>} />
+            <Route path="exit-plan"   element={<Suspense fallback={<PageLoader />}><ErrorBoundary><ExitPlan /></ErrorBoundary></Suspense>} />
+            <Route path="questionnaires" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><Questionnaires /></ErrorBoundary></Suspense>} />
             <Route path="*"           element={<NotFound />} />
           </Route>
         </Routes>

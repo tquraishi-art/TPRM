@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, AlertTriangle, Wrench, Building2, ClipboardList,
-  Radio, BarChart2, Landmark, Search, Newspaper, FileText, MessageSquare, GitBranch, Siren, FolderCheck, LogOut, Scale, Layers, ScrollText, Gauge, Stamp, Activity, Package, Handshake, ClipboardCheck, ArrowDownToLine
+  Radio, BarChart2, Landmark, Search, Newspaper, FileText, MessageSquare, GitBranch, Siren, FolderCheck, LogOut, Scale, Layers, ScrollText, Gauge, Stamp, Activity, Package, Handshake, ClipboardCheck, ArrowDownToLine, DoorOpen, Shield
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -21,12 +21,14 @@ const NAV = [
     { to: '/fourthparty',  label: 'Fourth-Party Registry',icon: GitBranch },
     { to: '/bia',          label: 'BIA / Criticality',    icon: Activity },
     { to: '/engagements',  label: 'Engagement Risk',       icon: Handshake },
-    { to: '/assessments',  label: 'Assessments',           icon: ClipboardCheck },
+    { to: '/assessments',     label: 'Assessments',           icon: ClipboardCheck },
+    { to: '/questionnaires',  label: 'Questionnaires',         icon: Shield },
   ]},
   { section: 'Incidents',            items: [
     { to: '/incidents',   label: 'Vendor Incidents',      icon: Siren },
     { to: '/evidence',    label: 'Evidence Register',     icon: FolderCheck },
-    { to: '/offboarding', label: 'Offboarding Checklist', icon: LogOut },
+    { to: '/offboarding',     label: 'Offboarding Checklist', icon: LogOut },
+    { to: '/exit-plan',       label: 'Exit Planning',          icon: DoorOpen },
   ]},
   { section: 'Compliance',           items: [
     { to: '/regulatory',     label: 'Regulatory Mapping',   icon: Scale },

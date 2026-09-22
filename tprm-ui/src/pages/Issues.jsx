@@ -3,79 +3,79 @@ import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Search, Plus, Pencil, X, Check, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { VENDORS_INIT, RISKS_SEED } from '@/lib/seedData'
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
-const VENDORS = [
-  {id:'v1',name:'CloudSystems Inc',tier:'Tier 1',cat:'Cloud / SaaS'},
-  {id:'v2',name:'DataSecure LLC',tier:'Tier 1',cat:'Technology'},
-  {id:'v3',name:'GlobalPay Corp',tier:'Tier 2',cat:'Financial Services'},
-  {id:'v4',name:'LegalEagle LLP',tier:'Tier 2',cat:'Legal'},
-  {id:'v5',name:'FastShip Logistics',tier:'Tier 3',cat:'Logistics'},
-  {id:'v6',name:'MedConsult Group',tier:'Tier 4',cat:'Healthcare'},
-]
-
-const RISKS_REF = [
-  {id:'r1', name:'Unpatched software vulnerabilities in cloud platform'},
-  {id:'r2', name:'Inadequate data encryption at rest'},
-  {id:'r3', name:'PCI-DSS compliance gap – network segmentation'},
-  {id:'r4', name:'Vendor financial instability'},
-  {id:'r5', name:'Single point of failure – cloud dependency'},
-  {id:'r6', name:'Subprocessor data sharing without consent'},
-  {id:'r7', name:'Shipping delays impacting SLA commitments'},
-  {id:'r8', name:'GDPR right-to-erasure non-compliance'},
-  {id:'r9', name:'Insider threat from contractor broad access'},
-  {id:'r10',name:'Contract renewal pricing risk'},
-]
-
 const INIT_ISSUES = [
-  {id:'i1',name:'Deploy patches for CloudSystems API CVEs',   riskId:'r1',vendor:'v1',pr:'Critical',owner:'S. Kim',    due:'2026-09-01',st:'In Progress',ev:'Ticket PLAT-8821',  desc:'Coordinate emergency patching across 3 production services.',
+  {id:'i1',name:'Emergency patching – AWS API CVEs',        riskId:'r1', vendor:'Amazon Web Services',    pr:'Critical',owner:'S. Kim',    due:'2026-10-01',st:'In Progress',ev:'PLAT-8821',
+   desc:'Coordinate emergency patching across 3 production AWS services affected by unpatched CVEs in core API infrastructure.',
    milestones:[
-     {id:'m1a',title:'Identify all affected services',         owner:'S. Kim',    dueDate:'2026-08-25',st:'Done',   notes:'3 services confirmed'},
-     {id:'m1b',title:'Apply patches to staging environment',   owner:'S. Kim',    dueDate:'2026-08-28',st:'Done',   notes:'Passed smoke tests'},
-     {id:'m1c',title:'Deploy to production (blue/green)',      owner:'S. Kim',    dueDate:'2026-09-01',st:'In Progress',notes:'Scheduled for 02:00 UTC maintenance window'},
-     {id:'m1d',title:'Verify patch via vulnerability re-scan', owner:'T. Wilson', dueDate:'2026-09-03',st:'To Do',  notes:''},
+     {id:'m1a',title:'Identify all affected AWS services',        owner:'S. Kim',    dueDate:'2026-09-20',st:'Done',       notes:'3 services confirmed'},
+     {id:'m1b',title:'Apply patches to staging environment',      owner:'S. Kim',    dueDate:'2026-09-25',st:'In Progress',notes:'Smoke tests in progress'},
+     {id:'m1c',title:'Deploy to production (blue/green)',         owner:'S. Kim',    dueDate:'2026-10-01',st:'To Do',      notes:'Maintenance window 02:00 UTC'},
+     {id:'m1d',title:'Verify via vulnerability re-scan',          owner:'T. Wilson', dueDate:'2026-10-03',st:'To Do',      notes:''},
    ]},
-  {id:'i2',name:'AES-256 encryption rollout – DataSecure',    riskId:'r2',vendor:'v2',pr:'High',    owner:'T. Wilson', due:'2026-08-30',st:'In Progress',ev:'SEC-1042',           desc:'Enable encryption at rest on all data stores.',
+  {id:'i2',name:'Microsoft Copilot sensitivity label rollout', riskId:'r2', vendor:'Microsoft',           pr:'Critical',owner:'L. Park',   due:'2026-09-30',st:'In Progress',ev:'SEC-1205',
+   desc:'Enforce sensitivity labels across M365 to prevent Copilot surfacing restricted documents to users without need-to-know.',
    milestones:[
-     {id:'m2a',title:'Inventory all unencrypted data stores',  owner:'T. Wilson', dueDate:'2026-08-10',st:'Done',   notes:'14 stores identified'},
-     {id:'m2b',title:'Encryption key provisioning (HSM)',      owner:'S. Kim',    dueDate:'2026-08-20',st:'Done',   notes:'Keys provisioned in EU-West HSM'},
-     {id:'m2c',title:'Encrypt production databases',           owner:'T. Wilson', dueDate:'2026-08-30',st:'In Progress',notes:'7 of 14 complete'},
-     {id:'m2d',title:'Encrypt backup stores',                  owner:'T. Wilson', dueDate:'2026-09-15',st:'To Do',  notes:''},
-     {id:'m2e',title:'Independent verification & sign-off',    owner:'R. Brown',  dueDate:'2026-09-20',st:'To Do',  notes:''},
+     {id:'m2a',title:'Audit all unlabelled documents',            owner:'L. Park',   dueDate:'2026-09-15',st:'Done',       notes:'42,000 docs identified without labels'},
+     {id:'m2b',title:'Auto-label via Purview policies',           owner:'L. Park',   dueDate:'2026-09-22',st:'In Progress',notes:'Policy deployed, 60% coverage'},
+     {id:'m2c',title:'Restrict Copilot to labelled content only', owner:'S. Kim',    dueDate:'2026-09-30',st:'To Do',      notes:''},
+     {id:'m2d',title:'Post-implementation verification',          owner:'R. Brown',  dueDate:'2026-10-07',st:'To Do',      notes:''},
    ]},
-  {id:'i3',name:'PCI remediation plan submission',            riskId:'r3',vendor:'v3',pr:'Critical',owner:'R. Brown',  due:'2026-08-15',st:'Overdue',     ev:'',                  desc:'Vendor to submit remediation plan for PCI audit failures.',
+  {id:'i3',name:'Okta break-glass procedures implementation', riskId:'r3', vendor:'Okta',                pr:'Critical',owner:'M. Davis',  due:'2026-09-15',st:'Open',        ev:'',
+   desc:'Implement break-glass emergency access procedures and evaluate secondary IdP to reduce Okta single-point-of-failure risk.',
    milestones:[
-     {id:'m3a',title:'Request remediation plan from GlobalPay',owner:'R. Brown',  dueDate:'2026-07-25',st:'Done',   notes:'Requested; vendor acknowledged'},
-     {id:'m3b',title:'Receive and review plan',                owner:'R. Brown',  dueDate:'2026-08-15',st:'Blocked',notes:'Plan received 2026-08-01 — insufficient detail on timeline'},
-     {id:'m3c',title:'Approve or escalate plan',               owner:'R. Brown',  dueDate:'2026-08-20',st:'To Do',  notes:''},
+     {id:'m3a',title:'Define break-glass account requirements',   owner:'M. Davis',  dueDate:'2026-09-10',st:'To Do',      notes:''},
+     {id:'m3b',title:'Provision and test break-glass accounts',   owner:'S. Kim',    dueDate:'2026-09-13',st:'To Do',      notes:''},
+     {id:'m3c',title:'Document runbook and distribute to leads',  owner:'M. Davis',  dueDate:'2026-09-15',st:'To Do',      notes:''},
+     {id:'m3d',title:'Evaluate secondary IdP options (Ping/Auth0)',owner:'M. Davis', dueDate:'2026-11-01',st:'To Do',      notes:''},
    ]},
-  {id:'i4',name:'Identify backup payment processor',          riskId:'r4',vendor:'v3',pr:'High',    owner:'M. Davis',  due:'2026-10-01',st:'Open',        ev:'',                  desc:'RFP to 3 alternative processors.',
+  {id:'i4',name:'OpenAI prompt training opt-out confirmation', riskId:'r29',vendor:'OpenAI',             pr:'High',    owner:'S. Kim',    due:'2026-10-15',st:'Open',        ev:'',
+   desc:'Contractual audit to confirm OpenAI enterprise contract fully prevents confidential prompt data from entering training pipelines.',
    milestones:[
-     {id:'m4a',title:'Define RFP requirements',                owner:'M. Davis',  dueDate:'2026-09-15',st:'To Do',  notes:''},
-     {id:'m4b',title:'Issue RFP to 3 processors',              owner:'M. Davis',  dueDate:'2026-09-20',st:'To Do',  notes:''},
-     {id:'m4c',title:'Evaluate responses',                     owner:'M. Davis',  dueDate:'2026-09-28',st:'To Do',  notes:''},
-     {id:'m4d',title:'Select backup processor + contract',     owner:'M. Davis',  dueDate:'2026-10-01',st:'To Do',  notes:''},
+     {id:'m4a',title:'Request written opt-out confirmation',      owner:'S. Kim',    dueDate:'2026-10-01',st:'To Do',      notes:''},
+     {id:'m4b',title:'Legal review of enterprise contract terms', owner:'R. Brown',  dueDate:'2026-10-10',st:'To Do',      notes:''},
+     {id:'m4c',title:'Implement usage policy and staff training', owner:'L. Park',   dueDate:'2026-10-15',st:'To Do',      notes:''},
    ]},
-  {id:'i5',name:'Multi-cloud DR pilot',                       riskId:'r5',vendor:'v1',pr:'High',    owner:'S. Kim',    due:'2026-12-01',st:'In Progress',ev:'Project Charter v1', desc:'Pilot 20% workload failover to secondary cloud.',
+  {id:'i5',name:'AWS multi-cloud DR pilot',                   riskId:'r5', vendor:'Amazon Web Services',  pr:'High',    owner:'S. Kim',    due:'2026-12-01',st:'In Progress',ev:'Charter v1',
+   desc:'Pilot 20% workload failover to secondary cloud to reduce AWS single-vendor concentration risk.',
    milestones:[
-     {id:'m5a',title:'DR architecture design sign-off',        owner:'S. Kim',    dueDate:'2026-09-30',st:'In Progress',notes:'Architecture review scheduled'},
-     {id:'m5b',title:'Provision secondary cloud environment',  owner:'S. Kim',    dueDate:'2026-10-15',st:'To Do',  notes:''},
-     {id:'m5c',title:'Failover test (20% workload)',           owner:'S. Kim',    dueDate:'2026-11-15',st:'To Do',  notes:''},
-     {id:'m5d',title:'Post-test review and report',            owner:'T. Wilson', dueDate:'2026-12-01',st:'To Do',  notes:''},
+     {id:'m5a',title:'DR architecture design sign-off',           owner:'S. Kim',    dueDate:'2026-09-30',st:'In Progress',notes:'Architecture review scheduled'},
+     {id:'m5b',title:'Provision secondary cloud environment',     owner:'S. Kim',    dueDate:'2026-10-15',st:'To Do',      notes:''},
+     {id:'m5c',title:'Failover test (20% workload)',              owner:'S. Kim',    dueDate:'2026-11-15',st:'To Do',      notes:''},
+     {id:'m5d',title:'Post-test review and report',               owner:'T. Wilson', dueDate:'2026-12-01',st:'To Do',      notes:''},
    ]},
-  {id:'i6',name:'Least-privilege access review – LegalEagle', riskId:'r9',vendor:'v4',pr:'Medium',  owner:'M. Davis',  due:'2026-11-15',st:'Open',        ev:'',                  desc:'Review and restrict contractor system access.',
+  {id:'i6',name:'NTT DATA contractor PAM enforcement',        riskId:'r6', vendor:'NTT DATA INTELLILINK', pr:'High',    owner:'S. Kim',    due:'2026-10-30',st:'In Progress',ev:'SEC-1042',
+   desc:'Enforce least-privilege and PAM (Privileged Access Management) controls for all NTT DATA contractor sessions with codebase access.',
    milestones:[
-     {id:'m6a',title:'Enumerate contractor accounts',          owner:'M. Davis',  dueDate:'2026-10-01',st:'To Do',  notes:''},
-     {id:'m6b',title:'Map access to business need',            owner:'M. Davis',  dueDate:'2026-10-15',st:'To Do',  notes:''},
-     {id:'m6c',title:'Revoke excess permissions',              owner:'IT Sec',    dueDate:'2026-11-01',st:'To Do',  notes:''},
-     {id:'m6d',title:'Confirm and document via access review', owner:'M. Davis',  dueDate:'2026-11-15',st:'To Do',  notes:''},
+     {id:'m6a',title:'Enumerate all contractor accounts',         owner:'M. Davis',  dueDate:'2026-09-25',st:'Done',       notes:'47 accounts identified'},
+     {id:'m6b',title:'Map access to business need (SOW review)',  owner:'M. Davis',  dueDate:'2026-10-05',st:'In Progress',notes:''},
+     {id:'m6c',title:'Deploy PAM tooling for contractor sessions',owner:'S. Kim',    dueDate:'2026-10-20',st:'To Do',      notes:''},
+     {id:'m6d',title:'Verify and document in access review',      owner:'M. Davis',  dueDate:'2026-10-30',st:'To Do',      notes:''},
    ]},
-  {id:'i7',name:'DPA renewal – DataSecure subprocessors',     riskId:'r6',vendor:'v2',pr:'Low',     owner:'L. Park',   due:'2026-12-31',st:'Closed',      ev:'DPA v2 signed',     desc:'Annual DPA review completed.',
+  {id:'i7',name:'GitHub repo visibility governance rollout',  riskId:'r19',vendor:'GitHub',              pr:'Critical',owner:'S. Kim',    due:'2026-10-01',st:'Open',        ev:'',
+   desc:'Enforce repo visibility governance, secret scanning, and branch protection rules to prevent accidental public exposure of source code.',
    milestones:[
-     {id:'m7a',title:'Review DPA against GDPR Art.28 checklist',owner:'L. Park', dueDate:'2026-06-01',st:'Done',   notes:'All 8 clauses confirmed'},
-     {id:'m7b',title:'Negotiate updated terms',                owner:'R. Brown',  dueDate:'2026-06-15',st:'Done',   notes:''},
-     {id:'m7c',title:'Execute DPA v2',                         owner:'L. Park',   dueDate:'2026-07-01',st:'Done',   notes:'Signed by both parties'},
+     {id:'m7a',title:'Audit all private repos for exposure risk', owner:'S. Kim',    dueDate:'2026-09-22',st:'To Do',      notes:''},
+     {id:'m7b',title:'Enable secret scanning org-wide',           owner:'S. Kim',    dueDate:'2026-09-25',st:'To Do',      notes:''},
+     {id:'m7c',title:'Enforce branch protection on all main branches',owner:'S. Kim',dueDate:'2026-09-28',st:'To Do',      notes:''},
+     {id:'m7d',title:'Repo visibility governance policy published',owner:'R. Brown', dueDate:'2026-10-01',st:'To Do',      notes:''},
+   ]},
+  {id:'i8',name:'NTT DATA EMEA subcontractor DPA disclosure', riskId:'r9', vendor:'NTT DATA INTELLILINK', pr:'Medium',  owner:'L. Park',   due:'2026-11-01',st:'Open',        ev:'',
+   desc:'Require full subcontractor disclosure in master DPA covering LATAM and EMEA subcontractors processing Salesforce data.',
+   milestones:[
+     {id:'m8a',title:'Request full subcontractor list from NTT',  owner:'L. Park',   dueDate:'2026-10-01',st:'To Do',      notes:''},
+     {id:'m8b',title:'Review DPA against GDPR Art.28 requirements',owner:'L. Park',  dueDate:'2026-10-15',st:'To Do',      notes:''},
+     {id:'m8c',title:'Execute updated DPA with sub-processor annex',owner:'R. Brown',dueDate:'2026-11-01',st:'To Do',      notes:''},
+   ]},
+  {id:'i9',name:'GDPR erasure compliance – AWS data stores',  riskId:'r8', vendor:'Amazon Web Services',  pr:'Low',     owner:'L. Park',   due:'2026-06-30',st:'Closed',      ev:'Deletion workflow audit log',
+   desc:'Automated deletion workflow deployed to process GDPR right-to-erasure requests within regulatory window.',
+   milestones:[
+     {id:'m9a',title:'Map all AWS stores containing PII',         owner:'L. Park',   dueDate:'2026-05-15',st:'Done',       notes:'12 stores identified'},
+     {id:'m9b',title:'Build automated deletion workflow',         owner:'S. Kim',    dueDate:'2026-06-15',st:'Done',       notes:'Lambda + DynamoDB TTL approach'},
+     {id:'m9c',title:'Test and sign off deletion pipeline',       owner:'L. Park',   dueDate:'2026-06-30',st:'Done',       notes:'Audit log verified'},
    ]},
 ]
 
@@ -106,7 +106,7 @@ const PRIORITIES = ['Critical','High','Medium','Low']
 const STATUSES   = ['Open','In Progress','Overdue','Closed']
 
 const inputCls = 'w-full border border-gray-200 rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white'
-const BLANK = { id:'', name:'', riskId:'', vendor:'v1', pr:'Medium', owner:'', due:'', st:'Open', ev:'', desc:'', milestones:[] }
+const BLANK = { id:'', name:'', riskId:'', vendor:'Amazon Web Services', pr:'Medium', owner:'', due:'', st:'Open', ev:'', desc:'', milestones:[] }
 
 const MS_STATUS = ['To Do','In Progress','Done','Blocked']
 const MS_STATUS_COLORS = {
@@ -116,9 +116,17 @@ const MS_STATUS_COLORS = {
   'Blocked':     'bg-red-100 text-red-700',
 }
 
-function vname(id) { return VENDORS.find(v => v.id === id)?.name || id }
-function vtier(id) { return VENDORS.find(v => v.id === id)?.tier || '' }
-function rname(id) { return RISKS_REF.find(r => r.id === id)?.name || '—' }
+function vname(nameOrId) {
+  const byName = VENDORS_INIT.find(v => v.name === nameOrId)
+  const byId   = VENDORS_INIT.find(v => v.id   === nameOrId)
+  return (byName || byId)?.name || nameOrId
+}
+function vtier(nameOrId) {
+  const byName = VENDORS_INIT.find(v => v.name === nameOrId)
+  const byId   = VENDORS_INIT.find(v => v.id   === nameOrId)
+  return (byName || byId)?.tier || ''
+}
+function rname(id) { return RISKS_SEED.find(r => r.id === id)?.name || '—' }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -149,6 +157,7 @@ export default function Issues() {
   const [search, setSearch]             = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [filterPr, setFilterPr]         = useState('')
+  const [filterRiskId, setFilterRiskId] = useState('')
   const [expandedId, setExpandedId]     = useState(null)
   const [modalOpen, setModalOpen]       = useState(false)
   const [editIssue, setEditIssue]       = useState(null)
@@ -158,6 +167,13 @@ export default function Issues() {
     if (!state) return
     if (state.filterStatus) setFilterStatus(state.filterStatus)
     if (state.filterPr)     setFilterPr(state.filterPr)
+    if (state.filterRiskId) setFilterRiskId(state.filterRiskId)
+    if (state.spawnFromRisk) {
+      const r = state.spawnFromRisk
+      setEditIssue(null)
+      setForm({ ...BLANK, id: 'i' + Date.now(), riskId: r.id, vendor: r.vendor, name: `Remediate: ${r.name.slice(0, 60)}`, desc: r.plan || '' })
+      setModalOpen(true)
+    }
   }, [state])
 
   // KPI counts
@@ -170,6 +186,7 @@ export default function Issues() {
     if (search && !i.name.toLowerCase().includes(search.toLowerCase()) && !vname(i.vendor).toLowerCase().includes(search.toLowerCase())) return false
     if (filterStatus && i.st !== filterStatus) return false
     if (filterPr     && i.pr !== filterPr) return false
+    if (filterRiskId && i.riskId !== filterRiskId) return false
     return true
   })
 
@@ -195,7 +212,7 @@ export default function Issues() {
     setModalOpen(false)
   }
 
-  const hasFilters = search || filterStatus || filterPr
+  const hasFilters = search || filterStatus || filterPr || filterRiskId
 
   function updateMilestone(issueId, msId, patch) {
     setIssues(prev => prev.map(i => i.id !== issueId ? i : {
@@ -274,9 +291,15 @@ export default function Issues() {
           <option value="">All Priorities</option>
           {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
+        {filterRiskId && (
+          <div className="text-[10px] bg-blue-50 border border-blue-200 text-blue-700 px-2 py-1 rounded flex items-center gap-1.5">
+            Filtered by Risk: <strong>{rname(filterRiskId).slice(0, 40)}…</strong>
+            <button onClick={() => setFilterRiskId('')} className="ml-1 text-blue-400 hover:text-blue-600">✕</button>
+          </div>
+        )}
         {hasFilters && (
           <button
-            onClick={() => { setSearch(''); setFilterStatus(''); setFilterPr('') }}
+            onClick={() => { setSearch(''); setFilterStatus(''); setFilterPr(''); setFilterRiskId('') }}
             className="text-xs text-gray-400 hover:text-gray-600 underline"
           >
             Clear
@@ -516,13 +539,13 @@ export default function Issues() {
               <div className="grid grid-cols-2 gap-2">
                 <FormField label="Vendor">
                   <select value={form.vendor} onChange={e => setForm(f => ({ ...f, vendor: e.target.value }))} className={inputCls}>
-                    {VENDORS.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                    {VENDORS_INIT.map(v => <option key={v.id} value={v.name}>{v.name}</option>)}
                   </select>
                 </FormField>
                 <FormField label="Linked Risk">
                   <select value={form.riskId} onChange={e => setForm(f => ({ ...f, riskId: e.target.value }))} className={inputCls}>
                     <option value="">— None —</option>
-                    {RISKS_REF.map(r => <option key={r.id} value={r.id}>{r.id.toUpperCase()}: {r.name.slice(0, 36)}{r.name.length > 36 ? '…' : ''}</option>)}
+                    {RISKS_SEED.map(r => <option key={r.id} value={r.id}>{r.id.toUpperCase()}: {r.name.slice(0, 36)}{r.name.length > 36 ? '…' : ''}</option>)}
                   </select>
                 </FormField>
               </div>
